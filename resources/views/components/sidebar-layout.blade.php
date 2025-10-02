@@ -12,9 +12,9 @@
 
 <body class="h-full">
   <div class="min-h-full">
-
-    {{ $slot }}
-
+    <x-role-sidebar>
+      {{ $slot }}
+    </x-role-sidebar>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1" type="module"></script>
