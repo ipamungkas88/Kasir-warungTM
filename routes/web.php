@@ -14,11 +14,6 @@ Route::post('/logout', [App\Http\Controllers\AuthController::class, 'logout'])->
 
 // Protected routes
 Route::middleware(['auth'])->group(function () {
-    // Dashboard - accessible by both owner and kasir
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    });
-
     // Owner only routes
     Route::middleware(['role:owner'])->group(function () {
         Route::get('/owner/dashboard', [App\Http\Controllers\OwnerController::class, 'dashboard'])->name('owner.dashboard');
@@ -50,10 +45,5 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/kasir/transaksi', [App\Http\Controllers\KasirController::class, 'storeTransaction'])->name('kasir.store-transaction');
         Route::get('/kasir/riwayat-transaksi', [App\Http\Controllers\KasirController::class, 'riwayatTransaksi'])->name('kasir.riwayat-transaksi');
         Route::get('/kasir/transaksi/{id}/detail', [App\Http\Controllers\KasirController::class, 'transactionDetail'])->name('kasir.transaction-detail');
-    });
-
-    // Shared routes (both owner and kasir)
-    Route::get('/riwayat-transaksi', function () {
-        return view('pages.riwayat-transaksi');
     });
 });

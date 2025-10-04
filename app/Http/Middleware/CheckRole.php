@@ -22,7 +22,12 @@ class CheckRole
         $userRole = auth()->user()->role;
         
         if (!in_array($userRole, $roles)) {
-            abort(403, 'Unauthorized action.');
+            // Redirect to appropriate dashboard instead of showing 403
+            if ($userRole === 'owner') {
+                return redirect()->route('owner.dashboard');
+            } else {
+                return redirect()->route('kasir.dashboard');
+            }
         }
 
         return $next($request);

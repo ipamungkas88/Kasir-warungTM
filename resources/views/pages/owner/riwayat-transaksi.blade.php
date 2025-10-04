@@ -16,40 +16,40 @@
           </h3>
 
           <form method="GET" action="{{ route('owner.riwayat-transaksi') }}"
-            class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Search -->
-            <div>
+            <div class="md:col-span-2 lg:col-span-1">
               <label for="search"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cari Kode
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cari Kode
                 Transaksi</label>
               <input type="text" name="search" id="search" value="{{ request('search') }}"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                class="mt-1 block w-full px-3 py-1.5 min-w-[200px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 placeholder="Masukkan kode transaksi">
             </div>
 
             <!-- Date From -->
             <div>
               <label for="date_from"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Dari
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Dari
                 Tanggal</label>
               <input type="date" name="date_from" id="date_from"
                 value="{{ request('date_from') }}"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                class="mt-1 block w-full px-3 py-1.5 min-w-[160px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             </div>
 
             <!-- Date To -->
             <div>
               <label for="date_to"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Sampai
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sampai
                 Tanggal</label>
               <input type="date" name="date_to" id="date_to" value="{{ request('date_to') }}"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                class="mt-1 block w-full px-3 py-1.5 min-w-[160px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             </div>
 
             <!-- Submit Button -->
             <div class="flex items-end">
               <button type="submit"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium">
+                class="w-full min-w-[120px] bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-3 rounded-md font-medium">
                 Filter
               </button>
             </div>
@@ -394,11 +394,11 @@
           </div>
 
           ${transaction.notes ? `
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Catatan</label>
-              <p class="mt-1 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-3 rounded">${transaction.notes}</p>
-            </div>
-            ` : ''}
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Catatan</label>
+                <p class="mt-1 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-3 rounded">${transaction.notes}</p>
+              </div>
+              ` : ''}
         </div>
       `;
     }

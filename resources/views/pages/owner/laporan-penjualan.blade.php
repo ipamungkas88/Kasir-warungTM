@@ -16,13 +16,13 @@
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Filter Laporan</h3>
 
           <form method="GET" action="{{ route('owner.laporan-penjualan') }}"
-            class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Period -->
             <div>
               <label for="period"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Periode</label>
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Periode</label>
               <select name="period" id="period" onchange="toggleDateFields()"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                class="mt-1 block w-full px-3 py-1.5 min-w-[140px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 <option value="daily"
                   {{ request('period', 'daily') === 'daily' ? 'selected' : '' }}>Harian</option>
                 <option value="weekly" {{ request('period') === 'weekly' ? 'selected' : '' }}>
@@ -38,11 +38,11 @@
             <div id="date-from-field"
               class="{{ request('period') !== 'custom' ? 'opacity-50' : '' }}">
               <label for="start_date"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Dari
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Dari
                 Tanggal</label>
               <input type="date" name="start_date" id="start_date"
                 value="{{ request('start_date') }}"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                class="mt-1 block w-full px-3 py-1.5 min-w-[160px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 {{ request('period') !== 'custom' ? 'disabled' : '' }}>
             </div>
 
@@ -50,17 +50,17 @@
             <div id="date-to-field"
               class="{{ request('period') !== 'custom' ? 'opacity-50' : '' }}">
               <label for="end_date"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Sampai
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sampai
                 Tanggal</label>
               <input type="date" name="end_date" id="end_date" value="{{ request('end_date') }}"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                class="mt-1 block w-full px-3 py-1.5 min-w-[160px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 {{ request('period') !== 'custom' ? 'disabled' : '' }}>
             </div>
 
             <!-- Submit Button -->
             <div class="flex items-end">
               <button type="submit"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium">
+                class="w-full min-w-[140px] bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-3 rounded-md font-medium">
                 Generate Laporan
               </button>
             </div>

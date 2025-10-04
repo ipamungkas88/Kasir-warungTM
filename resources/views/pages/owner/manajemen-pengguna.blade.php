@@ -22,27 +22,30 @@
         </div>
       </div>
 
+      <!-- Success/Error Messages -->
+      <div id="alert-container" class="mx-auto max-w-none mt-6"></div>
+
       <!-- Search and Filter -->
       <div class="mx-auto max-w-none mt-8">
         <div class="bg-white shadow rounded-lg p-6 dark:bg-gray-800 mb-6">
           <form method="GET" action="{{ route('owner.manajemen-pengguna') }}"
-            class="flex flex-wrap gap-4 items-end">
+            class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <!-- Search -->
-            <div class="flex-1 min-w-64">
+            <div class="md:col-span-2">
               <label for="search"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cari
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cari
                 Pengguna</label>
               <input type="text" name="search" id="search" value="{{ request('search') }}"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                class="mt-1 block w-full px-3 py-1.5 min-w-[250px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 placeholder="Nama atau username...">
             </div>
 
             <!-- Role Filter -->
             <div>
               <label for="role"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Role</label>
               <select name="role" id="role"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                class="mt-1 block w-full px-3 py-1.5 min-w-[120px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 <option value="">Semua Role</option>
                 <option value="owner" {{ request('role') === 'owner' ? 'selected' : '' }}>Owner
                 </option>
@@ -51,17 +54,17 @@
               </select>
             </div>
 
-            <!-- Submit Button -->
-            <button type="submit"
-              class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-md">
-              Filter
-            </button>
-
-            <!-- Reset Button -->
-            <a href="{{ route('owner.manajemen-pengguna') }}"
-              class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md">
-              Reset
-            </a>
+            <!-- Action Buttons -->
+            <div class="flex gap-2">
+              <button type="submit"
+                class="flex-1 min-w-[80px] bg-gray-600 hover:bg-gray-700 text-white py-1.5 px-3 rounded-md font-medium">
+                Filter
+              </button>
+              <a href="{{ route('owner.manajemen-pengguna') }}"
+                class="flex-1 min-w-[80px] bg-red-600 hover:bg-red-700 text-white py-1.5 px-3 rounded-md text-center font-medium">
+                Reset
+              </a>
+            </div>
           </form>
         </div>
 
@@ -256,8 +259,8 @@
   <!-- Add/Edit User Modal -->
   <div id="user-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
     <div class="flex items-center justify-center min-h-screen p-4">
-      <div class="fixed inset-0 bg-gray-500 bg-opacity-50" onclick="closeUserModal()"></div>
-      <div class="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full relative">
+      <div class="fixed inset-0 bg-transparent backdrop-blur-sm" onclick="closeUserModal()"></div>
+      <div class="bg-white dark:bg-gray-800 rounded-lg max-w-xl w-full relative">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div class="flex justify-between items-center">
             <h3 id="modal-title" class="text-lg font-semibold text-gray-900 dark:text-white">
@@ -277,31 +280,31 @@
           @csrf
           <input type="hidden" id="user-id" name="user_id">
 
-          <div class="space-y-4">
+          <div class="space-y-5">
             <div>
               <label for="name"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nama
                 Lengkap</label>
               <input type="text" name="name" id="name" required
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                class="mt-1 block w-full px-3 py-1.5 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 placeholder="Masukkan nama lengkap">
               <div class="text-red-500 text-sm mt-1 hidden" id="name-error"></div>
             </div>
 
             <div>
               <label for="username"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Username</label>
               <input type="text" name="username" id="username" required
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                class="mt-1 block w-full px-3 py-1.5 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 placeholder="Masukkan username">
               <div class="text-red-500 text-sm mt-1 hidden" id="username-error"></div>
             </div>
 
             <div>
               <label for="role"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Role</label>
               <select name="role" id="role" required
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                class="mt-1 block w-full px-3 py-1.5 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                 <option value="">Pilih Role</option>
                 <option value="kasir">Kasir</option>
                 <option value="owner">Owner</option>
@@ -311,9 +314,9 @@
 
             <div id="password-section">
               <label for="password"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Password</label>
               <input type="password" name="password" id="password"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                class="mt-1 block w-full px-3 py-1.5 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 placeholder="Masukkan password">
               <div class="text-red-500 text-sm mt-1 hidden" id="password-error"></div>
               <p class="text-sm text-gray-500 dark:text-gray-400 mt-1" id="password-help">
@@ -323,10 +326,10 @@
 
             <div>
               <label for="password_confirmation"
-                class="block text-sm font-medium text-gray-700 dark:text-gray-300">Konfirmasi
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Konfirmasi
                 Password</label>
               <input type="password" name="password_confirmation" id="password_confirmation"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                class="mt-1 block w-full px-3 py-1.5 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 placeholder="Ulangi password">
               <div class="text-red-500 text-sm mt-1 hidden" id="password_confirmation-error">
               </div>
@@ -351,7 +354,8 @@
   <!-- Delete Confirmation Modal -->
   <div id="delete-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
     <div class="flex items-center justify-center min-h-screen p-4">
-      <div class="fixed inset-0 bg-gray-500 bg-opacity-50" onclick="closeDeleteModal()"></div>
+      <div class="fixed inset-0 bg-transparent backdrop-blur-sm" onclick="closeDeleteModal()">
+      </div>
       <div class="bg-white dark:bg-gray-800 rounded-lg max-w-sm w-full relative">
         <div class="p-6 text-center">
           <svg class="mx-auto mb-4 h-14 w-14 text-red-600" fill="none" viewBox="0 0 24 24"
@@ -460,14 +464,15 @@
         .then(data => {
           if (data.success) {
             closeDeleteModal();
-            location.reload();
+            showAlert(data.message, 'success');
+            setTimeout(() => location.reload(), 1000);
           } else {
-            alert('Error: ' + (data.message || 'Gagal menghapus pengguna'));
+            showAlert('Error: ' + (data.message || 'Gagal menghapus pengguna'), 'error');
           }
         })
         .catch(error => {
           console.error('Error:', error);
-          alert('Terjadi kesalahan saat menghapus pengguna');
+          showAlert('Terjadi kesalahan saat menghapus pengguna', 'error');
         });
     }
 
@@ -508,12 +513,13 @@
         .then(data => {
           if (data.success) {
             closeUserModal();
-            location.reload();
+            showAlert(data.message, 'success');
+            setTimeout(() => location.reload(), 1000);
           } else {
             if (data.errors) {
               showFormErrors(data.errors);
             } else {
-              alert('Error: ' + (data.message || 'Gagal menyimpan pengguna'));
+              showAlert('Error: ' + (data.message || 'Gagal menyimpan pengguna'), 'error');
             }
           }
         })
@@ -522,5 +528,43 @@
           alert('Terjadi kesalahan saat menyimpan data');
         });
     });
+
+    // Function to show alert messages
+    function showAlert(message, type) {
+      const alertContainer = document.getElementById('alert-container');
+      const alertId = 'alert-' + Date.now();
+
+      const alertHtml = `
+        <div id="${alertId}" class="mx-auto max-w-none">
+          <div class="${type === 'success' ? 'bg-green-50 border border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300' : 'bg-red-50 border border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300'} px-4 py-3 rounded flex justify-between items-center">
+            <span>${message}</span>
+            <button onclick="closeAlert('${alertId}')" class="ml-4 ${type === 'success' ? 'text-green-500 hover:text-green-700' : 'text-red-500 hover:text-red-700'}">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      `;
+
+      alertContainer.innerHTML = alertHtml;
+
+      // Auto-hide after 10 seconds
+      setTimeout(function() {
+        closeAlert(alertId);
+      }, 10000);
+    }
+
+    // Function to close alert manually or automatically
+    function closeAlert(alertId) {
+      const alert = document.getElementById(alertId);
+      if (alert) {
+        alert.style.transition = 'opacity 0.3s ease-out';
+        alert.style.opacity = '0';
+        setTimeout(function() {
+          alert.remove();
+        }, 300);
+      }
+    }
   </script>
 </x-sidebar-layout>

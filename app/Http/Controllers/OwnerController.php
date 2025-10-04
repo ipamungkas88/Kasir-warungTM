@@ -10,6 +10,7 @@ use App\Models\Stock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 
 class OwnerController extends Controller
@@ -246,55 +247,77 @@ class OwnerController extends Controller
 
     public function storeUser(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:users',
-            'password' => 'required|string|min:6',
-            'role' => 'required|in:owner,kasir',
-        ]);
+        try {
+            $validatedData = $request->validate([
+                'name' => 'required|string|max:255',
+                'username' => 'required|string|max:255|unique:users',
+                'password' => 'required|string|min:6',
+                'role' => 'required|in:owner,kasir',
+            ]);
 
-        User::create([
-            'name' => $request->name,
-            'username' => $request->username,
-            'email' => $request->username . '@warung.tm', // dummy email
-            'password' => Hash::make($request->password),
-            'role' => $request->role,
-        ]);
+            User::create([
+                'name' => $validatedData['name'],
+                'username' => $validatedData['username'],
+                'email' => $validatedData['username'] . '@warung.tm', // dummy email
+                'password' => Hash::make($validatedData['password']),
+                'role' => $validatedData['role'],
+            ]);
 
-        return redirect()->back()->with('success', 'Pengguna berhasil ditambahkan!');
+            return response()->json(['success' => true, 'message' => 'Pengguna berhasil ditambahkan!']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $e->errors()]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+        }
     }
 
-    public function updateUser(Request $request, User $user)
+    public function updateUser(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:users,username,' . $user->id,
-            'role' => 'required|in:owner,kasir',
-            'password' => 'nullable|string|min:6',
-        ]);
+        try {
+            $userId = $request->input('user_id');
+            $user = User::findOrFail($userId);
+            
+            $validatedData = $request->validate([
+                'name' => 'required|string|max:255',
+                'username' => 'required|string|max:255|unique:users,username,' . $user->id,
+                'role' => 'required|in:owner,kasir',
+                'password' => 'nullable|string|min:6',
+            ]);
 
-        $updateData = [
-            'name' => $request->name,
-            'username' => $request->username,
-            'role' => $request->role,
-        ];
+            $updateData = [
+                'name' => $validatedData['name'],
+                'username' => $validatedData['username'],
+                'role' => $validatedData['role'],
+            ];
 
-        if ($request->password) {
-            $updateData['password'] = Hash::make($request->password);
+            if (!empty($validatedData['password'])) {
+                $updateData['password'] = Hash::make($validatedData['password']);
+            }
+
+            $user->update($updateData);
+
+            return response()->json(['success' => true, 'message' => 'Pengguna berhasil diperbarui!']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $e->errors()]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
         }
-
-        $user->update($updateData);
-
-        return redirect()->back()->with('success', 'Pengguna berhasil diperbarui!');
     }
 
-    public function deleteUser(User $user)
+    public function deleteUser(Request $request)
     {
-        if ($user->id === auth()->id()) {
-            return redirect()->back()->with('error', 'Tidak dapat menghapus akun sendiri!');
-        }
+        try {
+            $userId = $request->input('user_id');
+            $user = User::findOrFail($userId);
+            
+            if ($user->id === auth()->id()) {
+                return response()->json(['success' => false, 'message' => 'Tidak dapat menghapus akun sendiri!']);
+            }
 
-        $user->delete();
-        return redirect()->back()->with('success', 'Pengguna berhasil dihapus!');
+            $user->delete();
+            return response()->json(['success' => true, 'message' => 'Pengguna berhasil dihapus!']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+        }
     }
 }
