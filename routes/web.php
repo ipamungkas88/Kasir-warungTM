@@ -43,7 +43,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/kasir/dashboard', [App\Http\Controllers\KasirController::class, 'dashboard'])->name('kasir.dashboard');
         Route::get('/kasir/transaksi', [App\Http\Controllers\KasirController::class, 'transaksi'])->name('kasir.transaksi');
         Route::post('/kasir/transaksi', [App\Http\Controllers\KasirController::class, 'storeTransaction'])->name('kasir.store-transaction');
+        Route::post('/kasir/create-payment-token', [App\Http\Controllers\KasirController::class, 'createPaymentToken'])->name('kasir.create-payment-token');
+        Route::get('/kasir/check-payment-status/{orderId}', [App\Http\Controllers\KasirController::class, 'checkPaymentStatus'])->name('kasir.check-payment-status');
         Route::get('/kasir/riwayat-transaksi', [App\Http\Controllers\KasirController::class, 'riwayatTransaksi'])->name('kasir.riwayat-transaksi');
         Route::get('/kasir/transaksi/{id}/detail', [App\Http\Controllers\KasirController::class, 'transactionDetail'])->name('kasir.transaction-detail');
     });
 });
+
+// Midtrans Callback (without CSRF protection)
+Route::post('/midtrans-callback', [App\Http\Controllers\KasirController::class, 'midtransCallback'])->name('midtrans-callback');

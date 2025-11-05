@@ -93,10 +93,9 @@
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Metode
                     Pembayaran</label>
                   <select id="payment-method"
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    class="block w-full h-8 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                     <option value="cash">Tunai</option>
-                    <option value="card">Kartu</option>
-                    <option value="digital">Digital</option>
+                    <option value="qris">QRIS</option>
                   </select>
                 </div>
 
@@ -106,7 +105,7 @@
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Jumlah
                     Bayar</label>
                   <input type="number" id="paid-amount"
-                    class="block w-full px-4 py-4 text-lg min-w-[200px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    class="block w-full px-4 py-2 text-lg min-w-[200px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     placeholder="0" min="0" step="1000">
                 </div>
 
@@ -150,6 +149,36 @@
     </div>
   </div>
 
+  <!-- QRIS Payment Modal -->
+  <div id="qris-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen p-4">
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-50"></div>
+      <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full relative">
+        <div class="text-center">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Pembayaran QRIS</h3>
+
+          <!-- Loading State -->
+          <div id="qris-loading" class="mb-4">
+            <div
+              class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4">
+            </div>
+            <p class="text-gray-600 dark:text-gray-400">Memproses pembayaran...</p>
+          </div>
+
+          <!-- Payment Container -->
+          <div id="snap-container"></div>
+
+          <div class="flex space-x-3 mt-4">
+            <button onclick="closeQrisModal()"
+              class="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg">
+              Batal
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Success Modal -->
   <div id="success-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
     <div class="flex items-center justify-center min-h-screen p-4">
@@ -172,6 +201,10 @@
       </div>
     </div>
   </div>
+
+  <!-- Midtrans Snap Script -->
+  <script src="https://app.sandbox.midtrans.com/snap/snap.js"
+    data-client-key="{{ config('midtrans.client_key') }}"></script>
 
   <script>
     let cart = [];
@@ -303,6 +336,11 @@
       const paymentMethod = document.getElementById('payment-method').value;
       const notes = document.getElementById('notes').value;
 
+      if (paymentMethod === 'qris') {
+        processQrisPayment();
+        return;
+      }
+
       if (paidAmount < totalAmount) {
         alert('Jumlah bayar tidak cukup!');
         return;
@@ -341,11 +379,98 @@
         });
     }
 
+    function processQrisPayment() {
+      const notes = document.getElementById('notes').value;
+
+      // Show QRIS modal
+      document.getElementById('qris-modal').classList.remove('hidden');
+      document.getElementById('qris-loading').classList.remove('hidden');
+      document.getElementById('snap-container').innerHTML = '';
+
+      const orderData = {
+        items: cart,
+        total_amount: totalAmount,
+        notes: notes,
+        _token: '{{ csrf_token() }}'
+      };
+
+      fetch('{{ route('kasir.create-payment-token') }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+          },
+          body: JSON.stringify(orderData)
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById('qris-loading').classList.add('hidden');
+
+            snap.embed(data.snap_token, {
+              embedId: 'snap-container',
+              onSuccess: function(result) {
+                document.getElementById('qris-modal').classList.add('hidden');
+                document.getElementById('transaction-code').textContent =
+                  `Kode Transaksi: ${data.transaction.transaction_code}`;
+                document.getElementById('success-modal').classList.remove('hidden');
+                clearCart();
+              },
+              onPending: function(result) {
+                console.log('Payment pending:', result);
+                alert('Pembayaran sedang diproses. Silakan cek status pembayaran nanti.');
+                document.getElementById('qris-modal').classList.add('hidden');
+                clearCart();
+              },
+              onError: function(result) {
+                console.log('Payment error:', result);
+                alert('Terjadi kesalahan dalam pembayaran. Silakan coba lagi.');
+                document.getElementById('qris-modal').classList.add('hidden');
+              },
+              onClose: function() {
+                console.log('Payment popup closed');
+                document.getElementById('qris-modal').classList.add('hidden');
+              }
+            });
+          } else {
+            document.getElementById('qris-modal').classList.add('hidden');
+            alert('Gagal membuat token pembayaran: ' + data.message);
+          }
+        })
+        .catch(error => {
+          document.getElementById('qris-modal').classList.add('hidden');
+          console.error('Error:', error);
+          alert('Terjadi kesalahan saat membuat pembayaran QRIS');
+        });
+    }
+
     function closeModal() {
       document.getElementById('success-modal').classList.add('hidden');
     }
 
+    function closeQrisModal() {
+      document.getElementById('qris-modal').classList.add('hidden');
+    }
+
+    function togglePaymentFields() {
+      const paymentMethod = document.getElementById('payment-method').value;
+      const paidAmountDiv = document.getElementById('paid-amount').closest('.mb-4');
+      const changeSection = document.getElementById('change-section');
+
+      if (paymentMethod === 'qris') {
+        paidAmountDiv.style.display = 'none';
+        changeSection.classList.add('hidden');
+      } else {
+        paidAmountDiv.style.display = 'block';
+        calculateChange();
+      }
+    }
+
     // Event listeners
     document.getElementById('paid-amount').addEventListener('input', calculateChange);
+    document.getElementById('payment-method').addEventListener('change', togglePaymentFields);
+
+    // Initialize payment fields visibility
+    togglePaymentFields();
   </script>
 </x-sidebar-layout>

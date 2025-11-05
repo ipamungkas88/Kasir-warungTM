@@ -5,12 +5,19 @@ namespace App\Http\Controllers;
 use App\Models\Menu;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
+use App\Services\MidtransService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class KasirController extends Controller
 {
+    protected $midtransService;
+
+    public function __construct(MidtransService $midtransService)
+    {
+        $this->midtransService = $midtransService;
+    }
     public function dashboard()
     {
         $today = Carbon::today();
@@ -65,7 +72,7 @@ class KasirController extends Controller
             'items' => 'required|array|min:1',
             'items.*.menu_id' => 'required|exists:menus,id',
             'items.*.quantity' => 'required|integer|min:1',
-            'payment_method' => 'required|in:cash,card,digital',
+            'payment_method' => 'required|in:cash,qris,digital',
             'paid_amount' => 'required|numeric|min:0',
         ]);
 
@@ -192,6 +199,221 @@ class KasirController extends Controller
                 'success' => false,
                 'message' => 'Transaksi tidak ditemukan'
             ], 404);
+        }
+    }
+
+    public function createPaymentToken(Request $request)
+    {
+        $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.menu_id' => 'required|exists:menus,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'total_amount' => 'required|numeric|min:0',
+            'notes' => 'nullable|string'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // Calculate totals and prepare items
+            $totalAmount = 0;
+            $totalItems = 0;
+            $items = [];
+            $itemDetails = [];
+
+            foreach ($request->items as $item) {
+                $menu = Menu::findOrFail($item['menu_id']);
+                $quantity = $item['quantity'];
+                $subtotal = $menu->price * $quantity;
+
+                $items[] = [
+                    'menu_id' => $menu->id,
+                    'menu_name' => $menu->name,
+                    'menu_price' => $menu->price,
+                    'quantity' => $quantity,
+                    'subtotal' => $subtotal,
+                    'notes' => $item['notes'] ?? null
+                ];
+
+                // Prepare item details for Midtrans
+                $itemDetails[] = [
+                    'id' => $menu->id,
+                    'price' => $menu->price,
+                    'quantity' => $quantity,
+                    'name' => $menu->name,
+                ];
+
+                $totalAmount += $subtotal;
+                $totalItems += $quantity;
+            }
+
+            // Generate unique order ID
+            $orderId = 'ORDER-' . time() . '-' . auth()->id();
+
+            // Create transaction with pending status
+            $transaction = Transaction::create([
+                'transaction_code' => Transaction::generateTransactionCode(),
+                'user_id' => auth()->id(),
+                'total_amount' => $totalAmount,
+                'total_items' => $totalItems,
+                'payment_method' => 'qris',
+                'payment_status' => 'pending',
+                'midtrans_order_id' => $orderId,
+                'paid_amount' => 0,
+                'change_amount' => 0,
+                'status' => 'pending',
+                'notes' => $request->notes
+            ]);
+
+            // Create transaction items
+            foreach ($items as $item) {
+                $item['transaction_id'] = $transaction->id;
+                TransactionItem::create($item);
+            }
+
+            // Prepare Midtrans transaction details
+            $transactionDetails = [
+                'order_id' => $orderId,
+                'gross_amount' => $totalAmount,
+            ];
+
+            $customerDetails = [
+                'first_name' => auth()->user()->name,
+                'email' => auth()->user()->email ?? 'customer@warungtm.com',
+                'phone' => '08123456789', // You might want to add this to user table
+            ];
+
+            // Create Snap token
+            $snapToken = $this->midtransService->createSnapToken($transactionDetails, $customerDetails, $itemDetails);
+
+            // Update transaction with payment token
+            $transaction->update(['payment_token' => $snapToken]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'snap_token' => $snapToken,
+                'transaction' => $transaction
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membuat token pembayaran: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function midtransCallback(Request $request)
+    {
+        try {
+            $orderId = $request->order_id;
+            $statusCode = $request->status_code;
+            $grossAmount = $request->gross_amount;
+            
+            // Verify signature hash (optional but recommended for security)
+            $serverKey = config('midtrans.server_key');
+            $signatureKey = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
+
+            if ($request->signature_key && $signatureKey !== $request->signature_key) {
+                return response()->json(['message' => 'Invalid signature'], 401);
+            }
+
+            $transactionStatus = $request->transaction_status;
+            $fraudStatus = $request->fraud_status ?? null;
+
+            \Log::info('Midtrans Callback', [
+                'order_id' => $orderId,
+                'transaction_status' => $transactionStatus,
+                'status_code' => $statusCode
+            ]);
+
+            // Find transaction by midtrans order ID
+            $transaction = Transaction::where('midtrans_order_id', $orderId)->first();
+
+            if (!$transaction) {
+                return response()->json(['message' => 'Transaction not found'], 404);
+            }
+
+            // Update transaction status based on Midtrans response
+            if ($transactionStatus == 'settlement' || $transactionStatus == 'capture') {
+                $transaction->update([
+                    'payment_status' => 'paid',
+                    'status' => 'completed',
+                    'paid_amount' => $grossAmount,
+                ]);
+            } elseif ($transactionStatus == 'pending') {
+                $transaction->update([
+                    'payment_status' => 'pending',
+                ]);
+            } elseif (in_array($transactionStatus, ['deny', 'expire', 'cancel'])) {
+                $transaction->update([
+                    'payment_status' => 'failed',
+                    'status' => 'cancelled',
+                ]);
+            }
+
+            return response()->json(['message' => 'Callback processed successfully']);
+
+        } catch (\Exception $e) {
+            \Log::error('Midtrans Callback Error', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
+            return response()->json(['message' => 'Error processing callback: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function checkPaymentStatus($orderId)
+    {
+        try {
+            $transaction = Transaction::where('midtrans_order_id', $orderId)->first();
+            
+            if (!$transaction) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Transaction not found'
+                ], 404);
+            }
+
+            // Check status from Midtrans
+            $status = $this->midtransService->getTransactionStatus($orderId);
+            
+            // Update local transaction status based on Midtrans response
+            $statusData = is_object($status) ? (array) $status : $status;
+            $transactionStatus = $statusData['transaction_status'] ?? null;
+            $grossAmount = $statusData['gross_amount'] ?? 0;
+            
+            if ($transactionStatus == 'settlement' || $transactionStatus == 'capture') {
+                $transaction->update([
+                    'payment_status' => 'paid',
+                    'status' => 'completed',
+                    'paid_amount' => $grossAmount,
+                ]);
+            } elseif ($transactionStatus == 'pending') {
+                $transaction->update([
+                    'payment_status' => 'pending',
+                ]);
+            } elseif (in_array($transactionStatus, ['deny', 'expire', 'cancel'])) {
+                $transaction->update([
+                    'payment_status' => 'failed',
+                    'status' => 'cancelled',
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'transaction' => $transaction->fresh(),
+                'midtrans_status' => $status
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error checking payment status: ' . $e->getMessage()
+            ], 500);
         }
     }
 }
