@@ -7,6 +7,7 @@ Panduan step-by-step untuk setup sistem kasir Warung TM dari awal hingga siap di
 Pastikan semua requirements sudah terinstall di sistem Anda:
 
 ### Windows:
+
 ```bash
 # Install menggunakan Chocolatey (recommended)
 choco install php composer nodejs mysql
@@ -19,6 +20,7 @@ choco install php composer nodejs mysql
 ```
 
 ### Linux (Ubuntu/Debian):
+
 ```bash
 # Update package list
 sudo apt update
@@ -39,6 +41,7 @@ sudo apt install mysql-server
 ```
 
 ### macOS:
+
 ```bash
 # Install menggunakan Homebrew
 brew install php@8.2 composer node mysql
@@ -91,6 +94,7 @@ php artisan key:generate
 ### Step 4: Database Configuration
 
 #### 4.1 Buat Database:
+
 ```sql
 -- Login ke MySQL
 mysql -u root -p
@@ -108,6 +112,7 @@ EXIT;
 ```
 
 #### 4.2 Update .env File:
+
 ```env
 # Database Configuration
 DB_CONNECTION=mysql
@@ -117,7 +122,7 @@ DB_DATABASE=warungtm
 DB_USERNAME=warungtm_user
 DB_PASSWORD=password_kuat_123
 
-# App Configuration  
+# App Configuration
 APP_NAME="Warung TM"
 APP_ENV=local
 APP_DEBUG=true
@@ -173,22 +178,25 @@ php artisan serve
 ## 🧪 Verifikasi Instalasi
 
 ### Test 1: Akses Web Interface
+
 1. Buka browser dan akses `http://127.0.0.1:8000`
 2. Harus muncul halaman login
 3. Tidak ada error 500 atau database connection error
 
 ### Test 2: Login System
+
 ```bash
 # Login sebagai Owner
 Username: owner
 Password: owner123
 
-# Login sebagai Kasir  
+# Login sebagai Kasir
 Username: kasir
 Password: kasir123
 ```
 
 ### Test 3: Database Connection
+
 ```bash
 php artisan tinker
 
@@ -203,6 +211,7 @@ php artisan tinker
 ```
 
 ### Test 4: Midtrans Configuration
+
 ```bash
 php artisan tinker
 
@@ -210,7 +219,7 @@ php artisan tinker
 >>> config('midtrans.server_key');
 # Harus return server key
 
->>> config('midtrans.client_key');  
+>>> config('midtrans.client_key');
 # Harus return client key
 
 >>> exit
@@ -219,23 +228,27 @@ php artisan tinker
 ## 🏪 Setup Data Warung
 
 ### 1. Login sebagai Owner
+
 ```
 URL: http://127.0.0.1:8000/login
-Username: owner  
+Username: owner
 Password: owner123
 ```
 
 ### 2. Setup Menu Items
+
 1. Navigate ke **Manajemen Menu**
 2. Tambah kategori menu (contoh: Makanan, Minuman, Snack)
 3. Tambah menu items dengan harga dan deskripsi
 
 ### 3. Setup User Kasir (Optional)
+
 1. Navigate ke **Manajemen Pengguna**
 2. Tambah kasir baru atau edit yang existing
 3. Set username dan password yang mudah diingat
 
 ### 4. Test Transaksi
+
 1. Logout dan login sebagai kasir
 2. Navigate ke **Transaksi**
 3. Test transaksi tunai
@@ -244,6 +257,7 @@ Password: owner123
 ## 🔧 Troubleshooting Installation
 
 ### Error: "composer command not found"
+
 ```bash
 # Pastikan Composer ter-install dan ada di PATH
 composer --version
@@ -255,6 +269,7 @@ composer --version
 ```
 
 ### Error: "npm command not found"
+
 ```bash
 # Install Node.js dari nodejs.org
 node --version
@@ -262,6 +277,7 @@ npm --version
 ```
 
 ### Error: Database Connection
+
 ```bash
 # Check MySQL service
 # Windows: services.msc -> MySQL
@@ -273,6 +289,7 @@ mysql -u root -p -h 127.0.0.1
 ```
 
 ### Error: Permission Denied (Linux/Mac)
+
 ```bash
 # Fix ownership
 sudo chown -R $USER:$USER .
@@ -283,6 +300,7 @@ chmod -R 775 storage bootstrap/cache
 ```
 
 ### Error: "Key path does not exist"
+
 ```bash
 # Regenerate app key
 php artisan key:generate
@@ -292,6 +310,7 @@ php artisan config:clear
 ```
 
 ### Error: "Class not found"
+
 ```bash
 # Regenerate autoload
 composer dump-autoload
@@ -306,6 +325,7 @@ php artisan view:clear
 ## 📦 Development Tools (Optional)
 
 ### Install Development Dependencies:
+
 ```bash
 # Install dev dependencies
 composer install
@@ -320,11 +340,12 @@ php artisan ide-helper:models
 ```
 
 ### VS Code Extensions (Recommended):
-- PHP Intelephense
-- Laravel Blade Snippets
-- Laravel Artisan
-- Tailwind CSS IntelliSense
-- MySQL (for database management)
+
+-   PHP Intelephense
+-   Laravel Blade Snippets
+-   Laravel Artisan
+-   Tailwind CSS IntelliSense
+-   MySQL (for database management)
 
 ## 🚀 Next Steps
 
@@ -345,7 +366,7 @@ npm run dev                    # Watch file changes
 php artisan tinker            # Interactive console
 
 # Database
-php artisan migrate           # Run migrations  
+php artisan migrate           # Run migrations
 php artisan migrate:rollback  # Rollback last migration
 php artisan db:seed          # Seed data
 

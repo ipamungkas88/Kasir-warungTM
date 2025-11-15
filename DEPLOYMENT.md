@@ -4,44 +4,48 @@ Panduan lengkap untuk deploy sistem kasir Warung TM ke production server.
 
 ## 📋 Table of Contents
 
-- [Server Requirements](#server-requirements)
-- [Pre-deployment Checklist](#pre-deployment-checklist)
-- [Deployment Methods](#deployment-methods)
-- [SSL Configuration](#ssl-configuration)
-- [Database Setup](#database-setup)
-- [Environment Configuration](#environment-configuration)
-- [Performance Optimization](#performance-optimization)
-- [Security Hardening](#security-hardening)
-- [Monitoring & Logging](#monitoring--logging)
-- [Backup Strategy](#backup-strategy)
-- [Troubleshooting](#troubleshooting)
+-   [Server Requirements](#server-requirements)
+-   [Pre-deployment Checklist](#pre-deployment-checklist)
+-   [Deployment Methods](#deployment-methods)
+-   [SSL Configuration](#ssl-configuration)
+-   [Database Setup](#database-setup)
+-   [Environment Configuration](#environment-configuration)
+-   [Performance Optimization](#performance-optimization)
+-   [Security Hardening](#security-hardening)
+-   [Monitoring & Logging](#monitoring--logging)
+-   [Backup Strategy](#backup-strategy)
+-   [Troubleshooting](#troubleshooting)
 
 ## 🖥️ Server Requirements
 
 ### Minimum Production Requirements:
-- **OS**: Ubuntu 20.04+ / CentOS 8+ / Debian 11+
-- **CPU**: 2 vCPU
-- **RAM**: 4GB
-- **Storage**: 20GB SSD
-- **Bandwidth**: 100Mbps
+
+-   **OS**: Ubuntu 20.04+ / CentOS 8+ / Debian 11+
+-   **CPU**: 2 vCPU
+-   **RAM**: 4GB
+-   **Storage**: 20GB SSD
+-   **Bandwidth**: 100Mbps
 
 ### Recommended Production:
-- **OS**: Ubuntu 22.04 LTS
-- **CPU**: 4 vCPU
-- **RAM**: 8GB
-- **Storage**: 50GB SSD
-- **Bandwidth**: 1Gbps
+
+-   **OS**: Ubuntu 22.04 LTS
+-   **CPU**: 4 vCPU
+-   **RAM**: 8GB
+-   **Storage**: 50GB SSD
+-   **Bandwidth**: 1Gbps
 
 ### Software Stack:
-- **Web Server**: Nginx 1.18+ atau Apache 2.4+
-- **PHP**: 8.2+ dengan FPM
-- **Database**: MySQL 8.0+ atau MariaDB 10.6+
-- **Process Manager**: Supervisor (untuk queue)
-- **SSL**: Let's Encrypt atau SSL certificate
+
+-   **Web Server**: Nginx 1.18+ atau Apache 2.4+
+-   **PHP**: 8.2+ dengan FPM
+-   **Database**: MySQL 8.0+ atau MariaDB 10.6+
+-   **Process Manager**: Supervisor (untuk queue)
+-   **SSL**: Let's Encrypt atau SSL certificate
 
 ## ✅ Pre-deployment Checklist
 
 ### 1. Domain & DNS Setup
+
 ```bash
 # Pastikan domain sudah pointing ke server
 nslookup yourdomain.com
@@ -51,6 +55,7 @@ api.yourdomain.com -> Server IP
 ```
 
 ### 2. Server Access
+
 ```bash
 # SSH access dengan key-based authentication
 ssh -i ~/.ssh/your-key.pem user@server-ip
@@ -61,15 +66,17 @@ sudo visudo
 ```
 
 ### 3. Backup Strategy
-- Database backup automation
-- File backup automation  
-- Recovery testing plan
+
+-   Database backup automation
+-   File backup automation
+-   Recovery testing plan
 
 ## 🚀 Deployment Methods
 
 ## Method 1: Manual Deployment (Recommended untuk pemula)
 
 ### 1. Server Setup
+
 ```bash
 # Update system
 sudo apt update && sudo apt upgrade -y
@@ -86,6 +93,7 @@ sudo apt install -y nodejs
 ```
 
 ### 2. Clone & Setup Application
+
 ```bash
 # Clone repository
 cd /var/www
@@ -105,6 +113,7 @@ sudo -u www-data npm run build
 ```
 
 ### 3. Environment Configuration
+
 ```bash
 # Copy environment file
 sudo -u www-data cp .env.example .env
@@ -149,6 +158,7 @@ SESSION_HTTP_ONLY=true
 ```
 
 ### 4. Database Setup
+
 ```bash
 # Secure MySQL installation
 sudo mysql_secure_installation
@@ -176,6 +186,7 @@ sudo -u www-data php artisan db:seed --force
 ## Method 2: Docker Deployment
 
 ### 1. Create Dockerfile
+
 ```dockerfile
 FROM php:8.2-fpm
 
@@ -224,60 +235,62 @@ CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]
 ```
 
 ### 2. Docker Compose
+
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
-  app:
-    build: .
-    container_name: warungtm-app
-    restart: unless-stopped
-    working_dir: /var/www
-    volumes:
-      - ./:/var/www
-      - ./docker/nginx:/etc/nginx/conf.d
-    networks:
-      - warungtm-network
+    app:
+        build: .
+        container_name: warungtm-app
+        restart: unless-stopped
+        working_dir: /var/www
+        volumes:
+            - ./:/var/www
+            - ./docker/nginx:/etc/nginx/conf.d
+        networks:
+            - warungtm-network
 
-  database:
-    image: mysql:8.0
-    container_name: warungtm-db
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: warungtm
-      MYSQL_USER: warungtm
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: rootpassword
-    volumes:
-      - db-data:/var/lib/mysql
-    networks:
-      - warungtm-network
+    database:
+        image: mysql:8.0
+        container_name: warungtm-db
+        restart: unless-stopped
+        environment:
+            MYSQL_DATABASE: warungtm
+            MYSQL_USER: warungtm
+            MYSQL_PASSWORD: password
+            MYSQL_ROOT_PASSWORD: rootpassword
+        volumes:
+            - db-data:/var/lib/mysql
+        networks:
+            - warungtm-network
 
-  nginx:
-    image: nginx:alpine
-    container_name: warungtm-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./:/var/www
-      - ./docker/nginx:/etc/nginx/conf.d
-      - ./docker/ssl:/etc/ssl/certs
-    networks:
-      - warungtm-network
+    nginx:
+        image: nginx:alpine
+        container_name: warungtm-nginx
+        restart: unless-stopped
+        ports:
+            - "80:80"
+            - "443:443"
+        volumes:
+            - ./:/var/www
+            - ./docker/nginx:/etc/nginx/conf.d
+            - ./docker/ssl:/etc/ssl/certs
+        networks:
+            - warungtm-network
 
 volumes:
-  db-data:
+    db-data:
 
 networks:
-  warungtm-network:
-    driver: bridge
+    warungtm-network:
+        driver: bridge
 ```
 
 ## 🔒 SSL Configuration
 
 ### Let's Encrypt (Recommended)
+
 ```bash
 # Install Certbot
 sudo certbot --nginx -d yourdomain.com
@@ -288,6 +301,7 @@ sudo crontab -e
 ```
 
 ### Manual SSL Certificate
+
 ```bash
 # Copy certificates
 sudo mkdir -p /etc/ssl/certs/warungtm
@@ -299,6 +313,7 @@ sudo cp ca-bundle.crt /etc/ssl/certs/warungtm/
 ## 🌐 Nginx Configuration
 
 ### Site Configuration
+
 ```nginx
 # /etc/nginx/sites-available/warungtm
 server {
@@ -328,7 +343,7 @@ server {
     # Basic Configuration
     index index.php;
     charset utf-8;
-    
+
     # File Upload Size
     client_max_body_size 100M;
 
@@ -355,13 +370,14 @@ server {
     location ~ /\.(?!well-known).* {
         deny all;
     }
-    
+
     location = /favicon.ico { access_log off; log_not_found off; }
     location = /robots.txt  { access_log off; log_not_found off; }
 }
 ```
 
 ### Enable Site
+
 ```bash
 # Enable site
 sudo ln -s /etc/nginx/sites-available/warungtm /etc/nginx/sites-enabled/
@@ -377,6 +393,7 @@ sudo systemctl restart php8.2-fpm
 ## ⚡ Performance Optimization
 
 ### 1. Laravel Optimization
+
 ```bash
 # Cache configurations
 sudo -u www-data php artisan config:cache
@@ -391,6 +408,7 @@ sudo -u www-data php artisan optimize
 ```
 
 ### 2. Database Optimization
+
 ```sql
 -- MySQL Configuration (/etc/mysql/mysql.conf.d/mysqld.cnf)
 [mysqld]
@@ -404,6 +422,7 @@ query_cache_type = 1
 ```
 
 ### 3. PHP-FPM Tuning
+
 ```ini
 ; /etc/php/8.2/fpm/pool.d/www.conf
 [www]
@@ -423,6 +442,7 @@ pm.max_requests = 500
 ## 🔐 Security Hardening
 
 ### 1. Firewall Configuration
+
 ```bash
 # Install UFW
 sudo ufw enable
@@ -437,6 +457,7 @@ sudo ufw allow from 127.0.0.1 to any port 3306
 ```
 
 ### 2. File Permissions
+
 ```bash
 # Set proper permissions
 sudo find /var/www/warungtm -type f -exec chmod 644 {} \;
@@ -447,6 +468,7 @@ sudo chmod 600 /var/www/warungtm/.env
 ```
 
 ### 3. Disable Directory Browsing
+
 ```nginx
 # In nginx config
 location ~* /(?:\.git|storage|tests|database|resources/views) {
@@ -458,6 +480,7 @@ location ~* /(?:\.git|storage|tests|database|resources/views) {
 ## 📊 Monitoring & Logging
 
 ### 1. Application Monitoring
+
 ```bash
 # Laravel Log Monitoring
 sudo tail -f /var/www/warungtm/storage/logs/laravel.log
@@ -470,6 +493,7 @@ sudo tail -f /var/log/nginx/error.log
 ```
 
 ### 2. System Monitoring (Optional)
+
 ```bash
 # Install monitoring tools
 sudo apt install htop iotop nethogs
@@ -481,6 +505,7 @@ nethogs
 ```
 
 ### 3. Log Rotation
+
 ```bash
 # Laravel logs
 sudo nano /etc/logrotate.d/laravel
@@ -500,6 +525,7 @@ sudo nano /etc/logrotate.d/laravel
 ## 💾 Backup Strategy
 
 ### 1. Database Backup Script
+
 ```bash
 #!/bin/bash
 # /home/user/scripts/backup-db.sh
@@ -525,6 +551,7 @@ echo "Database backup completed: warungtm_$DATE.sql.gz"
 ```
 
 ### 2. File Backup Script
+
 ```bash
 #!/bin/bash
 # /home/user/scripts/backup-files.sh
@@ -550,6 +577,7 @@ echo "Files backup completed: warungtm_files_$DATE.tar.gz"
 ```
 
 ### 3. Automated Backup
+
 ```bash
 # Add to crontab
 sudo crontab -e
@@ -566,6 +594,7 @@ sudo crontab -e
 ### Common Issues:
 
 #### 1. 500 Internal Server Error
+
 ```bash
 # Check Laravel logs
 sudo tail -f /var/www/warungtm/storage/logs/laravel.log
@@ -582,6 +611,7 @@ sudo chmod -R 775 storage bootstrap/cache
 ```
 
 #### 2. Database Connection Error
+
 ```bash
 # Test MySQL connection
 mysql -u warungtm_user -p warungtm_prod
@@ -594,6 +624,7 @@ sudo systemctl restart mysql
 ```
 
 #### 3. SSL Certificate Issues
+
 ```bash
 # Test SSL certificate
 sudo certbot certificates
@@ -606,6 +637,7 @@ openssl x509 -in /etc/letsencrypt/live/yourdomain.com/cert.pem -text -noout
 ```
 
 #### 4. High Memory Usage
+
 ```bash
 # Check memory usage
 free -h
@@ -621,6 +653,7 @@ sudo nano /etc/php/8.2/fpm/pool.d/www.conf
 ### Performance Issues:
 
 #### Slow Database Queries:
+
 ```sql
 -- Enable slow query log
 SET GLOBAL slow_query_log = 'ON';
@@ -631,6 +664,7 @@ SHOW VARIABLES LIKE 'slow_query_log_file';
 ```
 
 #### High CPU Usage:
+
 ```bash
 # Check CPU usage by process
 top -c
@@ -645,53 +679,54 @@ php artisan telescope:install # For debugging (dev only)
 ## 🚀 Deployment Automation (Advanced)
 
 ### GitHub Actions Workflow
+
 ```yaml
 # .github/workflows/deploy.yml
 name: Deploy to Production
 
 on:
-  push:
-    branches: [ main ]
+    push:
+        branches: [main]
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v2
-    
-    - name: Deploy to server
-      uses: appleboy/ssh-action@v0.1.4
-      with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USERNAME }}
-        key: ${{ secrets.SSH_KEY }}
-        script: |
-          cd /var/www/warungtm
-          git pull origin main
-          composer install --optimize-autoloader --no-dev
-          npm ci && npm run build
-          php artisan migrate --force
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache
-          sudo systemctl reload php8.2-fpm
+    deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v2
+
+            - name: Deploy to server
+              uses: appleboy/ssh-action@v0.1.4
+              with:
+                  host: ${{ secrets.HOST }}
+                  username: ${{ secrets.USERNAME }}
+                  key: ${{ secrets.SSH_KEY }}
+                  script: |
+                      cd /var/www/warungtm
+                      git pull origin main
+                      composer install --optimize-autoloader --no-dev
+                      npm ci && npm run build
+                      php artisan migrate --force
+                      php artisan config:cache
+                      php artisan route:cache
+                      php artisan view:cache
+                      sudo systemctl reload php8.2-fpm
 ```
 
 ---
 
 ## ✅ Post-Deployment Checklist
 
-- [ ] Application accessible via HTTPS
-- [ ] SSL certificate valid and auto-renewing
-- [ ] Database connected and migrations ran
-- [ ] QRIS payment testing successful
-- [ ] All user roles working properly
-- [ ] Backup scripts configured and tested
-- [ ] Monitoring and alerting set up
-- [ ] Security hardening completed
-- [ ] Performance optimization applied
-- [ ] Error logging working properly
+-   [ ] Application accessible via HTTPS
+-   [ ] SSL certificate valid and auto-renewing
+-   [ ] Database connected and migrations ran
+-   [ ] QRIS payment testing successful
+-   [ ] All user roles working properly
+-   [ ] Backup scripts configured and tested
+-   [ ] Monitoring and alerting set up
+-   [ ] Security hardening completed
+-   [ ] Performance optimization applied
+-   [ ] Error logging working properly
 
 **🎉 Congratulations! Your Warung TM system is now live in production!**
 

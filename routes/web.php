@@ -26,6 +26,8 @@ Route::middleware(['auth'])->group(function () {
         
         // Laporan Penjualan
         Route::get('/owner/laporan-penjualan', [App\Http\Controllers\OwnerController::class, 'laporanPenjualan'])->name('owner.laporan-penjualan');
+        Route::get('/owner/laporan-penjualan/export-pdf', [App\Http\Controllers\OwnerController::class, 'exportPDF'])->name('owner.laporan-penjualan.export-pdf');
+        Route::get('/owner/laporan-penjualan/export-excel', [App\Http\Controllers\OwnerController::class, 'exportExcel'])->name('owner.laporan-penjualan.export-excel');
         
         // Riwayat Transaksi
         Route::get('/owner/riwayat-transaksi', [App\Http\Controllers\OwnerController::class, 'riwayatTransaksi'])->name('owner.riwayat-transaksi');

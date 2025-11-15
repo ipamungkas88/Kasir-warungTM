@@ -142,66 +142,210 @@ class OwnerController extends Controller
         $period = $request->get('period', 'daily');
         $startDate = $request->get('start_date');
         $endDate = $request->get('end_date');
-
-        $query = Transaction::where('status', 'completed');
-
+        
+        // Set default dates based on period
         switch ($period) {
             case 'daily':
-                if ($startDate && $endDate) {
-                    $query->whereBetween(DB::raw('DATE(created_at)'), [$startDate, $endDate]);
-                } else {
-                    $query->whereDate('created_at', Carbon::today());
-                }
+                $startDate = Carbon::today();
+                $endDate = Carbon::today();
                 break;
             case 'weekly':
-                $query->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
+                $startDate = Carbon::now()->startOfWeek();
+                $endDate = Carbon::now()->endOfWeek();
                 break;
             case 'monthly':
-                $query->whereMonth('created_at', Carbon::now()->month);
+                $startDate = Carbon::now()->startOfMonth();
+                $endDate = Carbon::now()->endOfMonth();
+                break;
+            case 'custom':
+                $startDate = $startDate ? Carbon::parse($startDate) : Carbon::today();
+                $endDate = $endDate ? Carbon::parse($endDate) : Carbon::today();
                 break;
         }
 
-        $transactions = $query->with('user')->orderBy('created_at', 'desc')->get();
-        
+        // Get transactions within date range
+        $transactions = Transaction::with(['user', 'items.menu'])
+            ->whereDate('created_at', '>=', $startDate)
+            ->whereDate('created_at', '<=', $endDate)
+            ->where('status', 'completed')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Calculate summary statistics
         $totalSales = $transactions->sum('total_amount');
         $totalTransactions = $transactions->count();
         $averageTransaction = $totalTransactions > 0 ? $totalSales / $totalTransactions : 0;
 
-        // Chart data
-        $chartData = $this->getSalesChartData($period, $startDate, $endDate);
+        // Prepare chart data based on period
+        $chartData = $this->prepareChartData($transactions, $period, $startDate, $endDate);
 
         return view('pages.owner.laporan-penjualan', compact(
             'transactions',
-            'totalSales',
+            'totalSales', 
             'totalTransactions', 
             'averageTransaction',
             'chartData',
-            'period'
+            'period',
+            'startDate',
+            'endDate'
         ));
     }
 
-    private function getSalesChartData($period, $startDate = null, $endDate = null)
+    private function prepareChartData($transactions, $period, $startDate, $endDate)
     {
-        $data = [];
+        $chartData = [];
         
-        if ($period === 'daily') {
-            $days = $startDate && $endDate 
-                ? Carbon::parse($startDate)->diffInDays(Carbon::parse($endDate)) + 1
-                : 7;
+        switch ($period) {
+            case 'daily':
+                // Hourly breakdown for daily view
+                for ($hour = 0; $hour < 24; $hour++) {
+                    $hourlyTransactions = $transactions->filter(function ($transaction) use ($hour) {
+                        return $transaction->created_at->hour == $hour;
+                    });
+                    
+                    $chartData[] = [
+                        'label' => sprintf('%02d:00', $hour),
+                        'value' => $hourlyTransactions->sum('total_amount')
+                    ];
+                }
+                break;
                 
-            for ($i = $days - 1; $i >= 0; $i--) {
-                $date = Carbon::today()->subDays($i);
-                $sales = Transaction::whereDate('created_at', $date)
-                    ->where('status', 'completed')
-                    ->sum('total_amount');
-                $data[] = [
-                    'label' => $date->format('M d'),
-                    'value' => $sales
-                ];
-            }
+            case 'weekly':
+                // Daily breakdown for weekly view
+                $current = $startDate->copy();
+                while ($current <= $endDate) {
+                    $dayTransactions = $transactions->filter(function ($transaction) use ($current) {
+                        return $transaction->created_at->toDateString() == $current->toDateString();
+                    });
+                    
+                    $chartData[] = [
+                        'label' => $current->format('D, j M'),
+                        'value' => $dayTransactions->sum('total_amount')
+                    ];
+                    
+                    $current->addDay();
+                }
+                break;
+                
+            case 'monthly':
+                // Weekly breakdown for monthly view
+                $current = $startDate->copy()->startOfWeek();
+                $weekNumber = 1;
+                
+                while ($current <= $endDate) {
+                    $weekEnd = $current->copy()->endOfWeek();
+                    if ($weekEnd > $endDate) {
+                        $weekEnd = $endDate;
+                    }
+                    
+                    $weekTransactions = $transactions->filter(function ($transaction) use ($current, $weekEnd) {
+                        return $transaction->created_at >= $current && $transaction->created_at <= $weekEnd;
+                    });
+                    
+                    $chartData[] = [
+                        'label' => 'Week ' . $weekNumber,
+                        'value' => $weekTransactions->sum('total_amount')
+                    ];
+                    
+                    $current->addWeek();
+                    $weekNumber++;
+                }
+                break;
+                
+            case 'custom':
+                // Daily breakdown for custom period
+                $current = $startDate->copy();
+                while ($current <= $endDate) {
+                    $dayTransactions = $transactions->filter(function ($transaction) use ($current) {
+                        return $transaction->created_at->toDateString() == $current->toDateString();
+                    });
+                    
+                    $chartData[] = [
+                        'label' => $current->format('j M'),
+                        'value' => $dayTransactions->sum('total_amount')
+                    ];
+                    
+                    $current->addDay();
+                }
+                break;
         }
         
-        return $data;
+        return $chartData;
+    }
+
+    public function exportPDF(Request $request)
+    {
+        $period = $request->get('period', 'daily');
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+        
+        // Get the same data as laporan penjualan
+        $data = $this->getSalesReportData($period, $startDate, $endDate);
+        
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.sales-pdf', $data);
+        
+        $filename = 'laporan-penjualan-' . $data['startDate']->format('Y-m-d') . '-to-' . $data['endDate']->format('Y-m-d') . '.pdf';
+        
+        return $pdf->download($filename);
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $period = $request->get('period', 'daily');
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+        
+        $data = $this->getSalesReportData($period, $startDate, $endDate);
+        
+        $filename = 'laporan-penjualan-' . $data['startDate']->format('Y-m-d') . '-to-' . $data['endDate']->format('Y-m-d') . '.xlsx';
+        
+        return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\SalesReportExport($data), $filename);
+    }
+
+    private function getSalesReportData($period, $startDate, $endDate)
+    {
+        // Set default dates based on period
+        switch ($period) {
+            case 'daily':
+                $startDate = Carbon::today();
+                $endDate = Carbon::today();
+                break;
+            case 'weekly':
+                $startDate = Carbon::now()->startOfWeek();
+                $endDate = Carbon::now()->endOfWeek();
+                break;
+            case 'monthly':
+                $startDate = Carbon::now()->startOfMonth();
+                $endDate = Carbon::now()->endOfMonth();
+                break;
+            case 'custom':
+                $startDate = $startDate ? Carbon::parse($startDate) : Carbon::today();
+                $endDate = $endDate ? Carbon::parse($endDate) : Carbon::today();
+                break;
+        }
+
+        $transactions = Transaction::with(['user', 'items.menu'])
+            ->whereDate('created_at', '>=', $startDate)
+            ->whereDate('created_at', '<=', $endDate)
+            ->where('status', 'completed')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $totalSales = $transactions->sum('total_amount');
+        $totalTransactions = $transactions->count();
+        $averageTransaction = $totalTransactions > 0 ? $totalSales / $totalTransactions : 0;
+        $chartData = $this->prepareChartData($transactions, $period, $startDate, $endDate);
+
+        return compact(
+            'transactions',
+            'totalSales',
+            'totalTransactions',
+            'averageTransaction',
+            'chartData',
+            'period',
+            'startDate',
+            'endDate'
+        );
     }
 
     // 4. Riwayat Transaksi (sama seperti kasir tapi bisa lihat semua)

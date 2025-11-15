@@ -140,11 +140,11 @@
         <!-- Chart Section -->
         @if (isset($chartData) && !empty($chartData))
           <div class="bg-white shadow rounded-lg p-6 dark:bg-gray-800 mb-8">
-            <div class="flex justify-between items-center mb-4">
+            <div class="flex justify-between items-center mb-6">
               <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Grafik Penjualan</h3>
               <div class="flex space-x-2">
                 <button onclick="exportPDF()"
-                  class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
+                  class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors">
                   <svg class="w-4 h-4 inline mr-1" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -153,7 +153,7 @@
                   PDF
                 </button>
                 <button onclick="exportExcel()"
-                  class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
+                  class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors">
                   <svg class="w-4 h-4 inline mr-1" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -163,25 +163,10 @@
                 </button>
               </div>
             </div>
-            <div class="space-y-3">
-              @php $maxValue = collect($chartData)->max('value') @endphp
-              @foreach ($chartData as $data)
-                <div class="flex items-center justify-between">
-                  <span
-                    class="text-sm text-gray-600 dark:text-gray-400 w-20">{{ $data['label'] }}</span>
-                  <div class="flex-1 mx-3">
-                    <div class="bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                      @php $percentage = $maxValue > 0 ? ($data['value'] / $maxValue) * 100 : 0 @endphp
-                      <div
-                        class="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-300"
-                        style="width: {{ $percentage }}%"></div>
-                    </div>
-                  </div>
-                  <span class="text-sm font-medium text-gray-900 dark:text-white w-24 text-right">
-                    Rp {{ number_format($data['value'], 0, ',', '.') }}
-                  </span>
-                </div>
-              @endforeach
+
+            <!-- Chart Container -->
+            <div class="relative h-96 bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+              <canvas id="salesChart" width="400" height="200"></canvas>
             </div>
           </div>
         @endif
@@ -279,7 +264,12 @@
     </div>
   </div>
 
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <script>
+    let salesChart = null;
+
     function toggleDateFields() {
       const period = document.getElementById('period').value;
       const dateFromField = document.getElementById('date-from-field');
@@ -300,19 +290,149 @@
       }
     }
 
+    function initializeChart() {
+      @if (isset($chartData) && !empty($chartData))
+        const ctx = document.getElementById('salesChart');
+        if (!ctx) return;
+
+        const chartData = @json($chartData);
+
+        // Destroy existing chart if exists
+        if (salesChart) {
+          salesChart.destroy();
+        }
+
+        salesChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: chartData.map(item => item.label),
+            datasets: [{
+              label: 'Penjualan (Rp)',
+              data: chartData.map(item => item.value),
+              backgroundColor: 'rgba(59, 130, 246, 0.8)',
+              borderColor: 'rgba(59, 130, 246, 1)',
+              borderWidth: 1,
+              borderRadius: 4,
+              borderSkipped: false,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                  font: {
+                    size: 12
+                  },
+                  color: document.documentElement.classList.contains('dark') ? '#ffffff' :
+                    '#374151'
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: '#ffffff',
+                bodyColor: '#ffffff',
+                callbacks: {
+                  label: function(context) {
+                    return 'Penjualan: Rp ' + new Intl.NumberFormat('id-ID').format(context
+                      .parsed.y);
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: document.documentElement.classList.contains('dark') ? '#374151' :
+                    '#e5e7eb'
+                },
+                ticks: {
+                  color: document.documentElement.classList.contains('dark') ? '#d1d5db' :
+                    '#6b7280',
+                  callback: function(value) {
+                    return 'Rp ' + new Intl.NumberFormat('id-ID').format(value);
+                  }
+                }
+              },
+              x: {
+                grid: {
+                  color: document.documentElement.classList.contains('dark') ? '#374151' :
+                    '#e5e7eb'
+                },
+                ticks: {
+                  color: document.documentElement.classList.contains('dark') ? '#d1d5db' :
+                    '#6b7280',
+                  maxRotation: 45,
+                  minRotation: 0
+                }
+              }
+            },
+            animation: {
+              duration: 1000,
+              easing: 'easeInOutQuart'
+            }
+          }
+        });
+      @endif
+    }
+
     function exportPDF() {
-      alert('Fitur export PDF akan segera tersedia');
-      // TODO: Implement PDF export
+      const params = new URLSearchParams(window.location.search);
+
+      // Create form and submit for PDF export
+      const form = document.createElement('form');
+      form.method = 'GET';
+      form.action = '{{ route('owner.laporan-penjualan.export-pdf') }}';
+
+      // Add all current parameters
+      for (const [key, value] of params) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
     }
 
     function exportExcel() {
-      alert('Fitur export Excel akan segera tersedia');
-      // TODO: Implement Excel export
+      const params = new URLSearchParams(window.location.search);
+
+      // Create form and submit for Excel export
+      const form = document.createElement('form');
+      form.method = 'GET';
+      form.action = '{{ route('owner.laporan-penjualan.export-excel') }}';
+
+      // Add all current parameters
+      for (const [key, value] of params) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
     }
 
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
       toggleDateFields();
+      initializeChart();
+    });
+
+    // Update chart on theme change (if you have dark mode toggle)
+    document.addEventListener('theme-changed', function() {
+      initializeChart();
     });
   </script>
 </x-sidebar-layout>

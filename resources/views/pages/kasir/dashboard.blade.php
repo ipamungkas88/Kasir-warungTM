@@ -126,7 +126,7 @@
 
             @if ($recentTransactions->count() > 0)
               <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <a href="{{ url('/riwayat-transaksi') }}"
+                <a href="{{ url('/kasir/riwayat-transaksi') }}"
                   class="text-blue-600 hover:text-blue-700 text-sm font-medium">
                   Lihat Semua Transaksi →
                 </a>
