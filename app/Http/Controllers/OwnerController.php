@@ -140,26 +140,51 @@ class OwnerController extends Controller
     public function laporanPenjualan(Request $request)
     {
         $period = $request->get('period', 'daily');
-        $startDate = $request->get('start_date');
-        $endDate = $request->get('end_date');
+        $startDate = null;
+        $endDate = null;
         
-        // Set default dates based on period
+        // Set dates based on period type
         switch ($period) {
             case 'daily':
-                $startDate = Carbon::today();
-                $endDate = Carbon::today();
+                $dailyDate = $request->get('daily_date', Carbon::today()->format('Y-m-d'));
+                $startDate = Carbon::parse($dailyDate);
+                $endDate = Carbon::parse($dailyDate);
                 break;
+                
             case 'weekly':
-                $startDate = Carbon::now()->startOfWeek();
-                $endDate = Carbon::now()->endOfWeek();
+                $month = $request->get('weekly_month', Carbon::now()->month);
+                $week = $request->get('weekly_week', 1);
+                $year = Carbon::now()->year;
+                
+                // Calculate start and end date for the specific week
+                $firstDayOfMonth = Carbon::create($year, $month, 1);
+                $startOfWeek = $firstDayOfMonth->copy()->addWeeks($week - 1)->startOfWeek();
+                $endOfWeek = $startOfWeek->copy()->endOfWeek();
+                
+                // Make sure we don't go outside the selected month
+                $endOfMonth = $firstDayOfMonth->copy()->endOfMonth();
+                if ($startOfWeek->month != $month) {
+                    $startOfWeek = $firstDayOfMonth->copy();
+                }
+                if ($endOfWeek > $endOfMonth) {
+                    $endOfWeek = $endOfMonth;
+                }
+                
+                $startDate = $startOfWeek;
+                $endDate = $endOfWeek;
                 break;
+                
             case 'monthly':
-                $startDate = Carbon::now()->startOfMonth();
-                $endDate = Carbon::now()->endOfMonth();
+                $month = $request->get('monthly_month', Carbon::now()->month);
+                $year = $request->get('monthly_year', Carbon::now()->year);
+                
+                $startDate = Carbon::create($year, $month, 1);
+                $endDate = $startDate->copy()->endOfMonth();
                 break;
+                
             case 'custom':
-                $startDate = $startDate ? Carbon::parse($startDate) : Carbon::today();
-                $endDate = $endDate ? Carbon::parse($endDate) : Carbon::today();
+                $startDate = $request->get('start_date') ? Carbon::parse($request->get('start_date')) : Carbon::today();
+                $endDate = $request->get('end_date') ? Carbon::parse($request->get('end_date')) : Carbon::today();
                 break;
         }
 
@@ -275,12 +300,7 @@ class OwnerController extends Controller
 
     public function exportPDF(Request $request)
     {
-        $period = $request->get('period', 'daily');
-        $startDate = $request->get('start_date');
-        $endDate = $request->get('end_date');
-        
-        // Get the same data as laporan penjualan
-        $data = $this->getSalesReportData($period, $startDate, $endDate);
+        $data = $this->getSalesReportData($request);
         
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.sales-pdf', $data);
         
@@ -291,36 +311,59 @@ class OwnerController extends Controller
 
     public function exportExcel(Request $request)
     {
-        $period = $request->get('period', 'daily');
-        $startDate = $request->get('start_date');
-        $endDate = $request->get('end_date');
-        
-        $data = $this->getSalesReportData($period, $startDate, $endDate);
+        $data = $this->getSalesReportData($request);
         
         $filename = 'laporan-penjualan-' . $data['startDate']->format('Y-m-d') . '-to-' . $data['endDate']->format('Y-m-d') . '.xlsx';
         
         return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\SalesReportExport($data), $filename);
     }
 
-    private function getSalesReportData($period, $startDate, $endDate)
+    private function getSalesReportData(Request $request)
     {
-        // Set default dates based on period
+        $period = $request->get('period', 'daily');
+        $startDate = null;
+        $endDate = null;
+        
+        // Set dates based on period type (same logic as laporanPenjualan)
         switch ($period) {
             case 'daily':
-                $startDate = Carbon::today();
-                $endDate = Carbon::today();
+                $dailyDate = $request->get('daily_date', Carbon::today()->format('Y-m-d'));
+                $startDate = Carbon::parse($dailyDate);
+                $endDate = Carbon::parse($dailyDate);
                 break;
+                
             case 'weekly':
-                $startDate = Carbon::now()->startOfWeek();
-                $endDate = Carbon::now()->endOfWeek();
+                $month = $request->get('weekly_month', Carbon::now()->month);
+                $week = $request->get('weekly_week', 1);
+                $year = Carbon::now()->year;
+                
+                $firstDayOfMonth = Carbon::create($year, $month, 1);
+                $startOfWeek = $firstDayOfMonth->copy()->addWeeks($week - 1)->startOfWeek();
+                $endOfWeek = $startOfWeek->copy()->endOfWeek();
+                
+                $endOfMonth = $firstDayOfMonth->copy()->endOfMonth();
+                if ($startOfWeek->month != $month) {
+                    $startOfWeek = $firstDayOfMonth->copy();
+                }
+                if ($endOfWeek > $endOfMonth) {
+                    $endOfWeek = $endOfMonth;
+                }
+                
+                $startDate = $startOfWeek;
+                $endDate = $endOfWeek;
                 break;
+                
             case 'monthly':
-                $startDate = Carbon::now()->startOfMonth();
-                $endDate = Carbon::now()->endOfMonth();
+                $month = $request->get('monthly_month', Carbon::now()->month);
+                $year = $request->get('monthly_year', Carbon::now()->year);
+                
+                $startDate = Carbon::create($year, $month, 1);
+                $endDate = $startDate->copy()->endOfMonth();
                 break;
+                
             case 'custom':
-                $startDate = $startDate ? Carbon::parse($startDate) : Carbon::today();
-                $endDate = $endDate ? Carbon::parse($endDate) : Carbon::today();
+                $startDate = $request->get('start_date') ? Carbon::parse($request->get('start_date')) : Carbon::today();
+                $endDate = $request->get('end_date') ? Carbon::parse($request->get('end_date')) : Carbon::today();
                 break;
         }
 
@@ -367,19 +410,88 @@ class OwnerController extends Controller
         }
 
         $transactions = $query->paginate(15);
-        $totalRevenue = $query->sum('total_amount');
+        
+        // Add total_items calculation for each transaction
+        $transactions->getCollection()->transform(function ($transaction) {
+            $transaction->total_items = $transaction->items->sum('quantity');
+            // Ensure transaction_code exists
+            if (!$transaction->transaction_code) {
+                $transaction->transaction_code = 'TRX-' . $transaction->id;
+            }
+            return $transaction;
+        });
+        
+        $totalRevenue = Transaction::with(['items.menu', 'user'])
+            ->when($request->has('search') && $request->search, function ($q) use ($request) {
+                $q->where('transaction_code', 'like', "%{$request->search}%");
+            })
+            ->when($request->has('date_from') && $request->date_from, function ($q) use ($request) {
+                $q->whereDate('created_at', '>=', $request->date_from);
+            })
+            ->when($request->has('date_to') && $request->date_to, function ($q) use ($request) {
+                $q->whereDate('created_at', '<=', $request->date_to);
+            })
+            ->sum('total_amount');
 
         return view('pages.owner.riwayat-transaksi', compact('transactions', 'totalRevenue'));
     }
 
     public function transactionDetail($id)
     {
-        $transaction = Transaction::with(['items.menu', 'user'])->findOrFail($id);
-        
-        return response()->json([
-            'success' => true,
-            'transaction' => $transaction
-        ]);
+        try {
+            $transaction = Transaction::with(['items.menu', 'user'])->findOrFail($id);
+            
+            // Calculate additional data
+            $totalItems = $transaction->items->sum('quantity');
+            $transaction->total_items = $totalItems;
+            
+            // Format response with calculated fields
+            $responseData = [
+                'id' => $transaction->id,
+                'transaction_code' => $transaction->transaction_code ?? 'TRX-' . $transaction->id,
+                'created_at' => $transaction->created_at,
+                'total_amount' => $transaction->total_amount,
+                'paid_amount' => $transaction->paid_amount ?? $transaction->total_amount,
+                'change_amount' => ($transaction->paid_amount ?? $transaction->total_amount) - $transaction->total_amount,
+                'payment_method' => $transaction->payment_method,
+                'status' => $transaction->status,
+                'notes' => $transaction->notes,
+                'total_items' => $totalItems,
+                'user' => [
+                    'id' => $transaction->user->id,
+                    'name' => $transaction->user->name,
+                    'username' => $transaction->user->username,
+                    'role' => $transaction->user->role
+                ],
+                'items' => $transaction->items->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'quantity' => $item->quantity,
+                        'price' => $item->price,
+                        'subtotal' => $item->quantity * $item->price,
+                        'menu' => [
+                            'id' => $item->menu->id,
+                            'name' => $item->menu->name,
+                            'price' => $item->menu->price
+                        ]
+                    ];
+                })
+            ];
+            
+            return response()->json([
+                'success' => true,
+                'transaction' => $responseData
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Transaction detail error: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Transaksi tidak ditemukan atau terjadi kesalahan.',
+                'error' => $e->getMessage()
+            ], 404);
+        }
     }
 
     // 5. Manajemen Pengguna

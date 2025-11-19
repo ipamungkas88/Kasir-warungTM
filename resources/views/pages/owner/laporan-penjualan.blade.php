@@ -34,27 +34,98 @@
               </select>
             </div>
 
-            <!-- Date From -->
-            <div id="date-from-field"
-              class="{{ request('period') !== 'custom' ? 'opacity-50' : '' }}">
+            <!-- Daily Period Input (Date Picker) -->
+            <div id="daily-field" class="hidden">
+              <label for="daily_date"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pilih
+                Hari</label>
+              <input type="date" name="daily_date" id="daily_date"
+                value="{{ request('daily_date', today()->format('Y-m-d')) }}"
+                class="mt-1 block w-full px-3 py-1.5 min-w-[160px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+            </div>
+
+            <!-- Weekly Period Input (Month & Week) -->
+            <div id="weekly-field" class="hidden">
+              <label for="weekly_month"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pilih
+                Bulan</label>
+              <select name="weekly_month" id="weekly_month"
+                class="mt-1 block w-full px-3 py-1.5 min-w-[140px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                @for ($i = 1; $i <= 12; $i++)
+                  <option value="{{ $i }}"
+                    {{ request('weekly_month', date('n')) == $i ? 'selected' : '' }}>
+                    {{ \Carbon\Carbon::create(null, $i)->format('F') }}
+                  </option>
+                @endfor
+              </select>
+            </div>
+
+            <div id="weekly-week-field" class="hidden">
+              <label for="weekly_week"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Minggu
+                Ke-</label>
+              <select name="weekly_week" id="weekly_week"
+                class="mt-1 block w-full px-3 py-1.5 min-w-[140px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <option value="1" {{ request('weekly_week', '1') == '1' ? 'selected' : '' }}>
+                  Minggu 1</option>
+                <option value="2" {{ request('weekly_week') == '2' ? 'selected' : '' }}>Minggu
+                  2</option>
+                <option value="3" {{ request('weekly_week') == '3' ? 'selected' : '' }}>Minggu
+                  3</option>
+                <option value="4" {{ request('weekly_week') == '4' ? 'selected' : '' }}>Minggu
+                  4</option>
+                <option value="5" {{ request('weekly_week') == '5' ? 'selected' : '' }}>Minggu
+                  5</option>
+              </select>
+            </div>
+
+            <!-- Monthly Period Input (Month & Year) -->
+            <div id="monthly-field" class="hidden">
+              <label for="monthly_month"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pilih
+                Bulan</label>
+              <select name="monthly_month" id="monthly_month"
+                class="mt-1 block w-full px-3 py-1.5 min-w-[140px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                @for ($i = 1; $i <= 12; $i++)
+                  <option value="{{ $i }}"
+                    {{ request('monthly_month', date('n')) == $i ? 'selected' : '' }}>
+                    {{ \Carbon\Carbon::create(null, $i)->format('F') }}
+                  </option>
+                @endfor
+              </select>
+            </div>
+
+            <div id="monthly-year-field" class="hidden">
+              <label for="monthly_year"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tahun</label>
+              <select name="monthly_year" id="monthly_year"
+                class="mt-1 block w-full px-3 py-1.5 min-w-[120px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                @for ($year = date('Y'); $year >= date('Y') - 5; $year--)
+                  <option value="{{ $year }}"
+                    {{ request('monthly_year', date('Y')) == $year ? 'selected' : '' }}>
+                    {{ $year }}
+                  </option>
+                @endfor
+              </select>
+            </div>
+
+            <!-- Custom Date Range (Hidden by default) -->
+            <div id="date-from-field" class="hidden">
               <label for="start_date"
                 class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Dari
                 Tanggal</label>
               <input type="date" name="start_date" id="start_date"
                 value="{{ request('start_date') }}"
-                class="mt-1 block w-full px-3 py-1.5 min-w-[160px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                {{ request('period') !== 'custom' ? 'disabled' : '' }}>
+                class="mt-1 block w-full px-3 py-1.5 min-w-[160px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             </div>
 
-            <!-- Date To -->
-            <div id="date-to-field"
-              class="{{ request('period') !== 'custom' ? 'opacity-50' : '' }}">
+            <div id="date-to-field" class="hidden">
               <label for="end_date"
                 class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sampai
                 Tanggal</label>
-              <input type="date" name="end_date" id="end_date" value="{{ request('end_date') }}"
-                class="mt-1 block w-full px-3 py-1.5 min-w-[160px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                {{ request('period') !== 'custom' ? 'disabled' : '' }}>
+              <input type="date" name="end_date" id="end_date"
+                value="{{ request('end_date') }}"
+                class="mt-1 block w-full px-3 py-1.5 min-w-[160px] rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
             </div>
 
             <!-- Submit Button -->
@@ -272,21 +343,45 @@
 
     function toggleDateFields() {
       const period = document.getElementById('period').value;
-      const dateFromField = document.getElementById('date-from-field');
-      const dateToField = document.getElementById('date-to-field');
-      const startDateInput = document.getElementById('start_date');
-      const endDateInput = document.getElementById('end_date');
 
-      if (period === 'custom') {
-        dateFromField.classList.remove('opacity-50');
-        dateToField.classList.remove('opacity-50');
-        startDateInput.disabled = false;
-        endDateInput.disabled = false;
-      } else {
-        dateFromField.classList.add('opacity-50');
-        dateToField.classList.add('opacity-50');
-        startDateInput.disabled = true;
-        endDateInput.disabled = true;
+      // Hide all fields first
+      const allFields = [
+        'daily-field',
+        'weekly-field',
+        'weekly-week-field',
+        'monthly-field',
+        'monthly-year-field',
+        'date-from-field',
+        'date-to-field'
+      ];
+
+      allFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+          field.classList.add('hidden');
+        }
+      });
+
+      // Show relevant fields based on period
+      switch (period) {
+        case 'daily':
+          document.getElementById('daily-field').classList.remove('hidden');
+          break;
+
+        case 'weekly':
+          document.getElementById('weekly-field').classList.remove('hidden');
+          document.getElementById('weekly-week-field').classList.remove('hidden');
+          break;
+
+        case 'monthly':
+          document.getElementById('monthly-field').classList.remove('hidden');
+          document.getElementById('monthly-year-field').classList.remove('hidden');
+          break;
+
+        case 'custom':
+          document.getElementById('date-from-field').classList.remove('hidden');
+          document.getElementById('date-to-field').classList.remove('hidden');
+          break;
       }
     }
 
@@ -426,7 +521,7 @@
 
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
-      toggleDateFields();
+      toggleDateFields(); // Show appropriate fields based on current period
       initializeChart();
     });
 

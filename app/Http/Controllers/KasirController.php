@@ -138,19 +138,15 @@ class KasirController extends Controller
         }
     }
 
-    public function riwayatTransaksi(Request $request)
+    public function riwayatTransaksi(Request $request)    
     {
         $query = Transaction::with(['items.menu', 'user'])
-            ->where('user_id', auth()->id())
             ->orderBy('created_at', 'desc');
 
-        // Search functionality
         if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where('transaction_code', 'like', "%{$search}%");
+            $query->where('transaction_code', 'like', "%{$request->search}%");
         }
 
-        // Date range filter
         if ($request->has('date_from') && $request->date_from) {
             $query->whereDate('created_at', '>=', $request->date_from);
         }
@@ -160,23 +156,28 @@ class KasirController extends Controller
         }
 
         $transactions = $query->paginate(15);
-
-        // Calculate summary statistics for filtered results
-        $summaryQuery = Transaction::where('user_id', auth()->id());
         
-        if ($request->has('search') && $request->search) {
-            $summaryQuery->where('transaction_code', 'like', "%{$request->search}%");
-        }
+        // Add total_items calculation for each transaction
+        $transactions->getCollection()->transform(function ($transaction) {
+            $transaction->total_items = $transaction->items->sum('quantity');
+            // Ensure transaction_code exists
+            if (!$transaction->transaction_code) {
+                $transaction->transaction_code = 'TRX-' . $transaction->id;
+            }
+            return $transaction;
+        });
         
-        if ($request->has('date_from') && $request->date_from) {
-            $summaryQuery->whereDate('created_at', '>=', $request->date_from);
-        }
-
-        if ($request->has('date_to') && $request->date_to) {
-            $summaryQuery->whereDate('created_at', '<=', $request->date_to);
-        }
-
-        $totalRevenue = $summaryQuery->sum('total_amount');
+        $totalRevenue = Transaction::with(['items.menu', 'user'])
+            ->when($request->has('search') && $request->search, function ($q) use ($request) {
+                $q->where('transaction_code', 'like', "%{$request->search}%");
+            })
+            ->when($request->has('date_from') && $request->date_from, function ($q) use ($request) {
+                $q->whereDate('created_at', '>=', $request->date_from);
+            })
+            ->when($request->has('date_to') && $request->date_to, function ($q) use ($request) {
+                $q->whereDate('created_at', '<=', $request->date_to);
+            })
+            ->sum('total_amount');
 
         return view('pages.kasir.riwayat-transaksi', compact('transactions', 'totalRevenue'));
     }
@@ -184,23 +185,61 @@ class KasirController extends Controller
     public function transactionDetail($id)
     {
         try {
-            $transaction = Transaction::with(['items.menu', 'user'])
-                ->where('id', $id)
-                ->where('user_id', auth()->id()) // Ensure kasir can only see their own transactions
-                ->firstOrFail();
-
+            $transaction = Transaction::with(['items.menu', 'user'])->findOrFail($id);
+            
+            // Calculate additional data
+            $totalItems = $transaction->items->sum('quantity');
+            $transaction->total_items = $totalItems;
+            
+            // Format response with calculated fields
+            $responseData = [
+                'id' => $transaction->id,
+                'transaction_code' => $transaction->transaction_code ?? 'TRX-' . $transaction->id,
+                'created_at' => $transaction->created_at,
+                'total_amount' => $transaction->total_amount,
+                'paid_amount' => $transaction->paid_amount ?? $transaction->total_amount,
+                'change_amount' => ($transaction->paid_amount ?? $transaction->total_amount) - $transaction->total_amount,
+                'payment_method' => $transaction->payment_method,
+                'status' => $transaction->status,
+                'notes' => $transaction->notes,
+                'total_items' => $totalItems,
+                'user' => [
+                    'id' => $transaction->user->id,
+                    'name' => $transaction->user->name,
+                    'username' => $transaction->user->username,
+                    'role' => $transaction->user->role
+                ],
+                'items' => $transaction->items->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'quantity' => $item->quantity,
+                        'price' => $item->price,
+                        'subtotal' => $item->quantity * $item->price,
+                        'menu' => [
+                            'id' => $item->menu->id,
+                            'name' => $item->menu->name,
+                            'price' => $item->menu->price
+                        ]
+                    ];
+                })
+            ];
+            
             return response()->json([
                 'success' => true,
-                'transaction' => $transaction
+                'transaction' => $responseData
             ]);
-
+            
         } catch (\Exception $e) {
+            \Log::error('Transaction detail error: ' . $e->getMessage());
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Transaksi tidak ditemukan'
+                'message' => 'Transaksi tidak ditemukan atau terjadi kesalahan.',
+                'error' => $e->getMessage()
             ], 404);
         }
     }
+
 
     public function createPaymentToken(Request $request)
     {

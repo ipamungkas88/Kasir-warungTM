@@ -239,8 +239,10 @@
                         </span>
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button onclick="showTransactionDetail({{ $transaction->id }})"
-                          class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
+                        <button type="button"
+                          onclick="showTransactionDetail({{ $transaction->id }})"
+                          data-transaction-id="{{ $transaction->id }}"
+                          class="detail-btn text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer">
                           Detail
                         </button>
                       </td>
@@ -302,109 +304,610 @@
 
   <script>
     function showTransactionDetail(transactionId) {
-      document.getElementById('detail-modal').classList.remove('hidden');
+      console.log('showTransactionDetail called with ID:', transactionId);
+
+      // Check if modal element exists
+      const modal = document.getElementById('detail-modal');
+      if (!modal) {
+        console.error('Modal element not found');
+        alert('Modal tidak ditemukan. Silakan refresh halaman.');
+        return;
+      }
+
+      modal.classList.remove('hidden');
+
+      // Show loading state
+      const modalContent = document.getElementById('modal-content');
+      if (!modalContent) {
+        console.error('Modal content element not found');
+        return;
+      }
+
+      modalContent.innerHTML = `
+        <div class="flex items-center justify-center p-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span class="ml-3 text-gray-600 dark:text-gray-400">Memuat data transaksi...</span>
+        </div>
+      `;
+
+      console.log('Fetching transaction detail for ID:', transactionId);
 
       fetch(`/owner/transaksi/${transactionId}/detail`)
-        .then(response => response.json())
+        .then(response => {
+          console.log('Response status:', response.status);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
         .then(data => {
+          console.log('Response data:', data);
           if (data.success) {
             displayTransactionDetail(data.transaction);
           } else {
-            document.getElementById('modal-content').innerHTML =
-              '<p class="text-red-600">Error loading transaction detail</p>';
+            document.getElementById('modal-content').innerHTML = `
+              <div class="text-center p-8">
+                <svg class="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">Gagal memuat data</h3>
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">${data.message || 'Error loading transaction detail'}</p>
+                <button onclick="showTransactionDetail(${transactionId})" class="mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
+                  Coba Lagi
+                </button>
+              </div>
+            `;
           }
         })
         .catch(error => {
-          console.error('Error:', error);
-          document.getElementById('modal-content').innerHTML =
-            '<p class="text-red-600">Error loading transaction detail</p>';
+          console.error('Fetch error:', error);
+          document.getElementById('modal-content').innerHTML = `
+            <div class="text-center p-8">
+              <svg class="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">Koneksi Bermasalah</h3>
+              <p class="mt-1 text-sm text-red-600 dark:text-red-400">Tidak dapat terhubung ke server. Silakan coba lagi.</p>
+              <p class="mt-1 text-xs text-gray-500">${error.message}</p>
+              <button onclick="showTransactionDetail(${transactionId})" class="mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
+                Coba Lagi
+              </button>
+            </div>
+          `;
         });
     }
 
     function displayTransactionDetail(transaction) {
+      console.log('displayTransactionDetail called with:', transaction);
+
       const modalContent = document.getElementById('modal-content');
+      if (!modalContent) {
+        console.error('Modal content element not found');
+        return;
+      }
 
       let itemsHTML = '';
-      transaction.items.forEach(item => {
-        itemsHTML += `
-          <tr class="border-b border-gray-200 dark:border-gray-700">
-            <td class="py-2 text-gray-900 dark:text-white">${item.menu.name}</td>
-            <td class="py-2 text-center text-gray-900 dark:text-white">${item.quantity}</td>
-            <td class="py-2 text-right text-gray-900 dark:text-white">Rp ${item.price.toLocaleString()}</td>
-            <td class="py-2 text-right font-semibold text-gray-900 dark:text-white">Rp ${item.subtotal.toLocaleString()}</td>
+      if (transaction.items && transaction.items.length > 0) {
+        transaction.items.forEach(item => {
+          const menuName = item.menu?.name || 'Item tidak tersedia';
+          const price = parseFloat(item.price) || 0;
+          const subtotal = parseFloat(item.subtotal) || (item.quantity * price);
+
+          itemsHTML += `
+            <tr class="border-b border-gray-200 dark:border-gray-700">
+              <td class="py-3 px-3 text-gray-900 dark:text-white">${menuName}</td>
+              <td class="py-3 px-3 text-center text-gray-900 dark:text-white">${item.quantity}</td>
+              <td class="py-3 px-3 text-right text-gray-900 dark:text-white">Rp ${price.toLocaleString('id-ID')}</td>
+              <td class="py-3 px-3 text-right font-semibold text-gray-900 dark:text-white">Rp ${subtotal.toLocaleString('id-ID')}</td>
+            </tr>
+          `;
+        });
+      } else {
+        itemsHTML = `
+          <tr>
+            <td colspan="4" class="py-4 text-center text-gray-500 dark:text-gray-400">
+              Tidak ada item dalam transaksi ini
+            </td>
           </tr>
         `;
+      }
+
+      const transactionCode = transaction.transaction_code || `TRX-${transaction.id}`;
+      const createdDate = new Date(transaction.created_at).toLocaleString('id-ID', {
+        dateStyle: 'full',
+        timeStyle: 'short'
       });
+      const kasirName = transaction.user?.name || 'Tidak diketahui';
+      const kasirRole = transaction.user?.role || 'kasir';
+      const paymentMethod = transaction.payment_method || 'cash';
+      const totalAmount = parseFloat(transaction.total_amount) || 0;
+      const paidAmount = parseFloat(transaction.paid_amount) || totalAmount;
+      const changeAmount = parseFloat(transaction.change_amount) || (paidAmount - totalAmount);
 
       modalContent.innerHTML = `
         <div class="space-y-6">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Kode Transaksi</label>
-              <p class="mt-1 text-sm text-gray-900 dark:text-white font-mono">${transaction.transaction_code}</p>
+          <div class="bg-blue-50 dark:bg-blue-900 rounded-lg p-4">
+            <div class="flex justify-between items-center">
+              <div>
+                <h4 class="text-lg font-semibold text-blue-900 dark:text-blue-100">${transactionCode}</h4>
+                <p class="text-sm text-blue-700 dark:text-blue-300">${createdDate}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-sm text-blue-700 dark:text-blue-300">Total Transaksi</p>
+                <p class="text-xl font-bold text-blue-900 dark:text-blue-100">Rp ${totalAmount.toLocaleString('id-ID')}</p>
+              </div>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal</label>
-              <p class="mt-1 text-sm text-gray-900 dark:text-white">${new Date(transaction.created_at).toLocaleString('id-ID')}</p>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kasir</label>
+              <div class="flex items-center">
+                <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center mr-3">
+                  <span class="text-xs font-medium text-white">${kasirName.charAt(0).toUpperCase()}</span>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">${kasirName}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 capitalize">${kasirRole}</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Kasir</label>
-              <p class="mt-1 text-sm text-gray-900 dark:text-white">${transaction.user.name} (${transaction.user.role})</p>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Metode Pembayaran</label>
-              <p class="mt-1 text-sm text-gray-900 dark:text-white capitalize">${transaction.payment_method}</p>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Metode Pembayaran</label>
+              <span class="inline-flex px-3 py-1 rounded-full text-sm font-medium ${
+                paymentMethod === 'cash' ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' :
+                paymentMethod === 'qris' ? 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100' :
+                'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100'
+              }">
+                ${paymentMethod.toUpperCase()}
+              </span>
             </div>
           </div>
 
           <div>
-            <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Item Transaksi</h4>
-            <div class="overflow-x-auto">
+            <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Detail Item Transaksi</h4>
+            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
               <table class="min-w-full">
                 <thead class="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Item</th>
-                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Qty</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Harga</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Subtotal</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Item</th>
+                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Qty</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga Satuan</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Subtotal</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
                   ${itemsHTML}
                 </tbody>
               </table>
             </div>
           </div>
 
-          <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-            <div class="space-y-2">
-              <div class="flex justify-between">
-                <span class="text-gray-600 dark:text-gray-400">Total:</span>
-                <span class="font-semibold text-gray-900 dark:text-white">Rp ${transaction.total_amount.toLocaleString()}</span>
+          <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Ringkasan Pembayaran</h4>
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600 dark:text-gray-400">Subtotal:</span>
+                <span class="font-medium text-gray-900 dark:text-white">Rp ${totalAmount.toLocaleString('id-ID')}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-gray-600 dark:text-gray-400">Dibayar:</span>
-                <span class="text-gray-900 dark:text-white">Rp ${transaction.paid_amount.toLocaleString()}</span>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600 dark:text-gray-400">Jumlah Dibayar:</span>
+                <span class="font-medium text-gray-900 dark:text-white">Rp ${paidAmount.toLocaleString('id-ID')}</span>
               </div>
-              <div class="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2">
-                <span class="text-gray-600 dark:text-gray-400">Kembalian:</span>
-                <span class="font-semibold text-green-600">Rp ${transaction.change_amount.toLocaleString()}</span>
+              <div class="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-600">
+                <span class="text-lg font-semibold text-gray-900 dark:text-white">Kembalian:</span>
+                <span class="text-lg font-bold ${changeAmount >= 0 ? 'text-green-600' : 'text-red-600'}">Rp ${Math.abs(changeAmount).toLocaleString('id-ID')}</span>
               </div>
             </div>
           </div>
 
           ${transaction.notes ? `
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Catatan</label>
-                <p class="mt-1 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-3 rounded">${transaction.notes}</p>
-              </div>
-              ` : ''}
+                    <div>
+                      <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Catatan Transaksi</h4>
+                      <div class="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
+                        <p class="text-sm text-yellow-800 dark:text-yellow-200">${transaction.notes}</p>
+                      </div>
+                    </div>
+                    ` : ''}
+              
+          <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button onclick="closeDetailModal()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+              Tutup
+            </button>
+          </div>
         </div>
       `;
     }
+    // btton print struk
+    //     <button onclick="printTransaction('${transactionCode}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+    //   <svg class="w-4 h-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    //     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+    //   </svg>
+    //   Print Struk
+    // </button>
+
 
     function closeDetailModal() {
-      document.getElementById('detail-modal').classList.add('hidden');
+      console.log('closeDetailModal called');
+      const modal = document.getElementById('detail-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+      } else {
+        console.error('Modal element not found for closing');
+      }
     }
+
+    function printTransaction(transactionCode) {
+      console.log('printTransaction called for:', transactionCode);
+
+      try {
+        // Implementasi print struk - bisa dikustomisasi lebih lanjut
+        const printWindow = window.open('', '_blank');
+        const modalContent = document.getElementById('modal-content');
+
+        if (!modalContent) {
+          console.error('Modal content not found for printing');
+          alert('Tidak dapat mencetak: konten tidak ditemukan');
+          return;
+        }
+
+        const content = modalContent.innerHTML;
+
+        printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <title>Struk Transaksi - ${transactionCode}</title>
+                  <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+                    .content { margin-bottom: 20px; }
+                    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f5f5f5; }
+                    .text-right { text-align: right; }
+                    .text-center { text-align: center; }
+                    @media print { body { margin: 0; } }
+                    button { display: none !important; }
+                  </style>
+                </head>
+                <body>
+                  <div class="header">
+                    <h2>WARUNG TM</h2>
+                    <p>Struk Transaksi</p>
+                  </div>
+                  <div class="content">
+                    ${content.replace(/<button[^>]*>.*?<\/button>/gi, '')}
+                  </div>
+                  <script>window.onload = function() { window.print(); window.close(); }
+  </script>
+  </body>
+
+  </html>
+  `);
+
+  printWindow.document.close();
+  } catch (error) {
+  console.error('Print error:', error);
+  alert('Terjadi kesalahan saat mencetak: ' + error.message);
+  }
+  }
+  </script>
+
+  <!-- Debug Script -->
+  <script>
+    // Ensure functions are defined globally
+    window.displayTransactionDetail = function(transaction) {
+      console.log('displayTransactionDetail called with:', transaction);
+
+      const modalContent = document.getElementById('modal-content');
+      if (!modalContent) {
+        console.error('Modal content element not found');
+        return;
+      }
+
+      let itemsHTML = '';
+      if (transaction.items && transaction.items.length > 0) {
+        transaction.items.forEach(item => {
+          const menuName = item.menu?.name || 'Item tidak tersedia';
+          const price = parseFloat(item.price) || 0;
+          const subtotal = parseFloat(item.subtotal) || (item.quantity * price);
+
+          itemsHTML += `
+            <tr class="border-b border-gray-200 dark:border-gray-700">
+              <td class="py-3 px-4 text-gray-900 dark:text-white">${menuName}</td>
+              <td class="py-3 px-4 text-center text-gray-900 dark:text-white">${item.quantity}</td>
+              <td class="py-3 px-4 text-right text-gray-900 dark:text-white">Rp ${price.toLocaleString('id-ID')}</td>
+              <td class="py-3 px-4 text-right font-semibold text-gray-900 dark:text-white">Rp ${subtotal.toLocaleString('id-ID')}</td>
+            </tr>
+          `;
+        });
+      } else {
+        itemsHTML = `
+          <tr>
+            <td colspan="4" class="py-4 text-center text-gray-500 dark:text-gray-400">
+              Tidak ada item dalam transaksi ini
+            </td>
+          </tr>
+        `;
+      }
+
+      const transactionCode = transaction.transaction_code || `TRX-${transaction.id}`;
+      const createdDate = new Date(transaction.created_at).toLocaleString('id-ID', {
+        dateStyle: 'full',
+        timeStyle: 'short'
+      });
+      const kasirName = transaction.user?.name || 'Tidak diketahui';
+      const kasirRole = transaction.user?.role || 'kasir';
+      const paymentMethod = transaction.payment_method || 'cash';
+      const totalAmount = parseFloat(transaction.total_amount) || 0;
+      const paidAmount = parseFloat(transaction.paid_amount) || totalAmount;
+      const changeAmount = parseFloat(transaction.change_amount) || (paidAmount - totalAmount);
+
+      modalContent.innerHTML = `
+        <div class="space-y-6">
+          <!-- Header Transaksi -->
+          <div class="bg-blue-50 dark:bg-blue-900 rounded-lg p-6">
+            <div class="flex justify-between items-center">
+              <div>
+                <h4 class="text-xl font-bold text-blue-900 dark:text-blue-100">${transactionCode}</h4>
+                <p class="text-sm text-blue-700 dark:text-blue-300 mt-1">${createdDate}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-sm text-blue-700 dark:text-blue-300">Total Transaksi</p>
+                <p class="text-2xl font-bold text-blue-900 dark:text-blue-100">Rp ${totalAmount.toLocaleString('id-ID')}</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Info Kasir dan Pembayaran -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <h5 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Informasi Kasir</h5>
+              <div class="flex items-center">
+                <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center mr-3">
+                  <span class="text-sm font-medium text-white">${kasirName.charAt(0).toUpperCase()}</span>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">${kasirName}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 capitalize">${kasirRole}</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <h5 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Metode Pembayaran</h5>
+              <span class="inline-flex px-3 py-1 rounded-full text-sm font-medium ${
+                paymentMethod === 'cash' ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' :
+                paymentMethod === 'qris' ? 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100' :
+                'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100'
+              }">
+                ${paymentMethod.toUpperCase()}
+              </span>
+            </div>
+          </div>
+
+          <!-- Detail Items -->
+          <div>
+            <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Detail Item Transaksi</h4>
+            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden shadow-sm">
+              <table class="min-w-full">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nama Item</th>
+                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Qty</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga Satuan</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                  ${itemsHTML}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Ringkasan Pembayaran -->
+          <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
+            <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Ringkasan Pembayaran</h4>
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600 dark:text-gray-400">Subtotal:</span>
+                <span class="font-medium text-gray-900 dark:text-white">Rp ${totalAmount.toLocaleString('id-ID')}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600 dark:text-gray-400">Jumlah Dibayar:</span>
+                <span class="font-medium text-gray-900 dark:text-white">Rp ${paidAmount.toLocaleString('id-ID')}</span>
+              </div>
+              <div class="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-600">
+                <span class="text-lg font-semibold text-gray-900 dark:text-white">Kembalian:</span>
+                <span class="text-lg font-bold ${changeAmount >= 0 ? 'text-green-600' : 'text-red-600'}">Rp ${Math.abs(changeAmount).toLocaleString('id-ID')}</span>
+              </div>
+            </div>
+          </div>
+
+          ${transaction.notes ? `
+                <div class="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
+                  <h5 class="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Catatan Transaksi</h5>
+                  <p class="text-sm text-yellow-700 dark:text-yellow-300">${transaction.notes}</p>
+                </div>
+                ` : ''}
+              
+          <!-- Action Buttons -->
+          <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button onclick="closeDetailModal()" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors">
+              Tutup
+            </button>
+          </div>
+        </div>
+      `;
+    };
+
+    // btton print struk
+    //     <button onclick="printTransaction('${transactionCode}')" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors">
+    //   <svg class="w-4 h-4 inline mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    //     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+    //   </svg>
+    //   Print Struk
+    // </button>
+
+
+    window.showTransactionDetail = function(transactionId) {
+      console.log('showTransactionDetail called with ID:', transactionId);
+
+      // Validate input
+      if (!transactionId) {
+        console.error('No transaction ID provided');
+        alert('ID transaksi tidak valid');
+        return;
+      }
+
+      // Check if modal element exists
+      const modal = document.getElementById('detail-modal');
+      if (!modal) {
+        console.error('Modal element not found');
+        alert('Modal tidak ditemukan. Silakan refresh halaman.');
+        return;
+      }
+
+      modal.classList.remove('hidden');
+
+      // Show loading state
+      const modalContent = document.getElementById('modal-content');
+      if (!modalContent) {
+        console.error('Modal content element not found');
+        return;
+      }
+
+      modalContent.innerHTML = `
+        <div class="flex items-center justify-center p-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span class="ml-3 text-gray-600 dark:text-gray-400">Memuat data transaksi...</span>
+        </div>
+      `;
+
+      console.log('Fetching transaction detail for ID:', transactionId);
+
+      fetch(`/owner/transaksi/${transactionId}/detail`)
+        .then(response => {
+          console.log('Response status:', response.status);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log('Response data:', data);
+          if (data.success) {
+            displayTransactionDetail(data.transaction);
+          } else {
+            showErrorModal(data.message || 'Error loading transaction detail', transactionId);
+          }
+        })
+        .catch(error => {
+          console.error('Fetch error:', error);
+          showErrorModal(`Tidak dapat terhubung ke server: ${error.message}`, transactionId);
+        });
+    };
+
+    window.showErrorModal = function(errorMessage, transactionId) {
+      document.getElementById('modal-content').innerHTML = `
+        <div class="text-center p-8">
+          <svg class="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">Terjadi Kesalahan</h3>
+          <p class="mt-1 text-sm text-red-600 dark:text-red-400">${errorMessage}</p>
+          <div class="mt-4 space-x-2">
+            <button onclick="showTransactionDetail(${transactionId})" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
+              Coba Lagi
+            </button>
+            <button onclick="closeDetailModal()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm">
+              Tutup
+            </button>
+          </div>
+        </div>
+      `;
+    };
+
+    window.closeDetailModal = function() {
+      console.log('closeDetailModal called');
+      const modal = document.getElementById('detail-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+      } else {
+        console.error('Modal element not found for closing');
+      }
+    };
+
+    // Debug untuk memastikan semua function tersedia
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('=== DEBUGGING MODAL DETAIL TRANSAKSI ===');
+      console.log('showTransactionDetail function available:', typeof window
+        .showTransactionDetail);
+      console.log('displayTransactionDetail function available:', typeof window
+        .displayTransactionDetail);
+      console.log('closeDetailModal function available:', typeof window.closeDetailModal);
+
+      // Check if modal exists
+      const modal = document.getElementById('detail-modal');
+      console.log('Modal element found:', modal ? 'Yes' : 'No');
+
+      const modalContent = document.getElementById('modal-content');
+      console.log('Modal content element found:', modalContent ? 'Yes' : 'No');
+
+      // Test onclick events
+      const detailButtons = document.querySelectorAll('[onclick*="showTransactionDetail"]');
+      console.log('Detail buttons found:', detailButtons.length);
+
+      // Add click event listeners as fallback
+      const detailBtns = document.querySelectorAll('.detail-btn');
+      console.log('Detail buttons with class found:', detailBtns.length);
+
+      detailBtns.forEach(function(btn, index) {
+        // Remove any existing event listeners
+        btn.removeEventListener('click', handleDetailClick);
+
+        // Add new event listener
+        btn.addEventListener('click', handleDetailClick);
+
+        console.log(`Added event listener to button ${index + 1}`);
+      });
+
+      function handleDetailClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        console.log('Button clicked via event listener');
+        const transactionId = this.getAttribute('data-transaction-id');
+        console.log('Transaction ID from data attribute:', transactionId);
+
+        if (transactionId) {
+          if (typeof window.showTransactionDetail === 'function') {
+            window.showTransactionDetail(transactionId);
+          } else {
+            console.error('showTransactionDetail function not available');
+            alert('Function tidak tersedia. Silakan refresh halaman.');
+          }
+        } else {
+          console.error('No transaction ID found');
+          alert('ID transaksi tidak ditemukan.');
+        }
+      }
+
+      // Test manual function call
+      window.testDetailFunction = function(id) {
+        console.log('Manual test with ID:', id);
+        if (typeof window.showTransactionDetail === 'function') {
+          window.showTransactionDetail(id);
+        } else {
+          console.error('showTransactionDetail function not found');
+        }
+      };
+    });
+
+    // Fallback untuk window onload
+    window.addEventListener('load', function() {
+      console.log('Window loaded');
+    });
   </script>
 </x-sidebar-layout>
